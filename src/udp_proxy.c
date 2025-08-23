@@ -86,6 +86,7 @@ int udp_proxy_init(struct udp_proxy *proxy, struct network_context *network,
     memset(proxy, 0, sizeof(*proxy));
     proxy->network = network;
     proxy->encrypt = encrypt;
+    proxy->encrypt_ctx = NULL;  /* Initialize encryption context */
     proxy->sessions = NULL;
     proxy->session_count = 0;
     proxy->total_sessions = 0;
@@ -343,6 +344,11 @@ void udp_proxy_cleanup(struct udp_proxy *proxy)
 
     /* Stop proxy first */
     udp_proxy_stop(proxy);
+    
+    /* Cleanup encryption if enabled */
+    if (proxy->encrypt_ctx) {
+        udp_proxy_disable_encryption(proxy);
+    }
 
     /* Clear proxy structure */
     memset(proxy, 0, sizeof(*proxy));
@@ -518,8 +524,25 @@ static void on_client_recv(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf,
         return;
     }
 
+    /* Process packet data (decrypt if encryption enabled) */
+    uint8_t *packet_data = (uint8_t*)buf->base;
+    size_t packet_size = nread;
+    
+    if (proxy->encrypt_ctx) {
+        /* Decrypt packet from client before forwarding to target */
+        int decrypt_ret = table_decrypt_data(proxy->encrypt_ctx, packet_data, packet_size);
+        if (decrypt_ret != 0) {
+            log_error("Failed to decrypt packet from client");
+            if (buf->base) {
+                free(buf->base);
+            }
+            return;
+        }
+        log_debug("Decrypted packet from client (%zu bytes)", packet_size);
+    }
+    
     /* Forward packet to target */
-    int ret = forward_udp_packet(&session->target_socket, (const uint8_t*)buf->base, nread,
+    int ret = forward_udp_packet(&session->target_socket, packet_data, packet_size,
                                 (const struct sockaddr*)&session->target_addr);
     if (ret != SEED_OK) {
         log_error("Failed to forward packet to target");
@@ -560,8 +583,25 @@ static void on_target_recv(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf,
         return;
     }
 
+    /* Process packet data (encrypt if encryption enabled) */
+    uint8_t *packet_data = (uint8_t*)buf->base;
+    size_t packet_size = nread;
+    
+    if (proxy->encrypt_ctx) {
+        /* Encrypt packet from target before forwarding to client */
+        int encrypt_ret = table_encrypt_data(proxy->encrypt_ctx, packet_data, packet_size);
+        if (encrypt_ret != 0) {
+            log_error("Failed to encrypt packet for client");
+            if (buf->base) {
+                free(buf->base);
+            }
+            return;
+        }
+        log_debug("Encrypted packet for client (%zu bytes)", packet_size);
+    }
+    
     /* Forward packet back to client */
-    int ret = forward_udp_packet(&proxy->server_socket, (const uint8_t*)buf->base, nread,
+    int ret = forward_udp_packet(&proxy->server_socket, packet_data, packet_size,
                                 (const struct sockaddr*)&session->client_addr);
     if (ret != SEED_OK) {
         log_error("Failed to forward packet to client");
@@ -654,4 +694,71 @@ static void on_udp_close(uv_handle_t *handle)
         /* Remove from proxy's session list */
         remove_session(session->proxy, session);
     }
+}
+
+int udp_proxy_enable_encryption(struct udp_proxy *proxy, const char *password)
+{
+    if (!proxy || !password) {
+        log_error("Invalid arguments to udp_proxy_enable_encryption");
+        return SEED_ERROR_INVALID_ARGS;
+    }
+    
+    if (proxy->encrypt_ctx) {
+        log_warning("UDP proxy '%s' already has encryption enabled", proxy->name);
+        return SEED_OK;
+    }
+    
+    /* Initialize table encryption module if needed */
+    int ret = table_encrypt_init();
+    if (ret != 0) {
+        log_error("Failed to initialize table encryption module");
+        return SEED_ERROR_GENERAL;
+    }
+    
+    /* Create encryption context from password */
+    ret = table_context_create(password, &proxy->encrypt_ctx);
+    if (ret != 0) {
+        log_error("Failed to create table encryption context for UDP proxy '%s'", proxy->name);
+        return SEED_ERROR_GENERAL;
+    }
+    
+    /* Store password for reference */
+    strncpy(proxy->encrypt_password, password, sizeof(proxy->encrypt_password) - 1);
+    proxy->encrypt_password[sizeof(proxy->encrypt_password) - 1] = '\0';
+    
+    /* Set encryption flag */
+    proxy->encrypt = true;
+    
+    log_info("UDP proxy '%s' encryption enabled with table encryption", proxy->name);
+    return SEED_OK;
+}
+
+void udp_proxy_disable_encryption(struct udp_proxy *proxy)
+{
+    if (!proxy) {
+        return;
+    }
+    
+    if (!proxy->encrypt_ctx) {
+        return; /* Already disabled */
+    }
+    
+    log_debug("Disabling encryption for UDP proxy '%s'", proxy->name);
+    
+    /* Destroy encryption context */
+    table_context_destroy(proxy->encrypt_ctx);
+    proxy->encrypt_ctx = NULL;
+    
+    /* Clear password */
+    memset(proxy->encrypt_password, 0, sizeof(proxy->encrypt_password));
+    
+    /* Clear encryption flag */
+    proxy->encrypt = false;
+    
+    log_info("UDP proxy '%s' encryption disabled", proxy->name);
+}
+
+bool udp_proxy_is_encrypted(const struct udp_proxy *proxy)
+{
+    return proxy && proxy->encrypt && proxy->encrypt_ctx;
 }

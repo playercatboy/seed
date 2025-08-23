@@ -10,6 +10,7 @@
 
 #include "common.h"
 #include "network.h"
+#include "table_encrypt.h"
 #include <uv.h>
 
 /** Maximum number of UDP sessions per proxy instance */
@@ -82,6 +83,10 @@ struct udp_proxy {
     struct sockaddr_in bind_addr;      /**< Address to bind to */
     struct sockaddr_in target_addr;    /**< Target address to forward to */
     bool encrypt;                      /**< Use encryption */
+    char encrypt_password[128];        /**< Encryption password (for table encryption) */
+    
+    /** Encryption context (if enabled) */
+    struct table_encrypt_context *encrypt_ctx; /**< Table encryption context */
     
     /** Network context */
     struct network_context *network;
@@ -172,6 +177,32 @@ struct udp_session* udp_proxy_find_or_create_session(struct udp_proxy *proxy,
  * @param[in] session       UDP session to close
  */
 void udp_session_close(struct udp_session *session);
+
+/**
+ * @brief Enable encryption for UDP proxy
+ * 
+ * @param[in,out] proxy    UDP proxy instance
+ * @param[in] password     Password for table encryption
+ * 
+ * @return SEED_OK on success, negative error code on failure
+ */
+int udp_proxy_enable_encryption(struct udp_proxy *proxy, const char *password);
+
+/**
+ * @brief Disable encryption for UDP proxy
+ * 
+ * @param[in,out] proxy    UDP proxy instance
+ */
+void udp_proxy_disable_encryption(struct udp_proxy *proxy);
+
+/**
+ * @brief Check if UDP proxy has encryption enabled
+ * 
+ * @param[in] proxy        UDP proxy instance
+ * 
+ * @return true if encryption enabled, false otherwise
+ */
+bool udp_proxy_is_encrypted(const struct udp_proxy *proxy);
 
 /**
  * @brief Cleanup UDP proxy instance
