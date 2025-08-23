@@ -79,10 +79,40 @@ seed [options]
 Server mode requires `[seed]` and `[server]` sections.
 Client mode requires `[seed]` and proxy instance sections.
 
+## Current Implementation Status
+
+### ✅ Completed Components
+- **Foundation**: Logging, configuration, command line parsing
+- **Security**: JWT authentication with SHA256 hashing  
+- **Network**: libuv-based async I/O with custom binary protocol
+- **Server Mode**: Client session management and proxy registry
+- **Testing**: Comprehensive unit tests and integration tests
+
+### 🚧 In Progress
+- Client mode implementation
+- TCP/UDP proxy data forwarding
+- Encryption layers (TLS/SSH/Table)
+
+### 📋 Next Steps
+- Complete client-server communication
+- Implement data tunneling
+- Add encryption support
+- Performance optimization
+
 ## Development Workflow
 
-1. Implement components incrementally
-2. Write unit tests for each component
-3. Test and fix issues
-4. Commit with descriptive messages
-5. Follow the hierarchical TODO list in doc/todos.md
+1. Follow hierarchical TODO list in doc/todos.md
+2. Implement components incrementally with unit tests
+3. Test functionality with standalone tests  
+4. Run full test suite: `make test`
+5. Commit with descriptive messages following conventional commits
+
+## Testing
+
+```bash
+make test              # Run comprehensive test suite
+make test-individual   # Run unit tests separately  
+make test-standalone   # Run integration tests
+```
+
+All core components have been tested and verified working.
