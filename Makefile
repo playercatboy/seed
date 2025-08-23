@@ -1,8 +1,8 @@
 # Seed Makefile for Linux/Unix systems
 
 CC = gcc
-CFLAGS = -Wall -Wextra -O2 -I./include -I./components/libuv/include -I./components/openssl/include
-LDFLAGS = -L./components/libuv/lib -L./components/openssl/lib
+CFLAGS = -Wall -Wextra -O2 -I./include -I./components/libuv/include -I./components/openssl/include -I./components/libssh/include
+LDFLAGS = -L./components/libuv/lib -L./components/openssl/lib -L./components/libssh/lib
 LIBS = -luv -lssl -lcrypto -lpthread -ldl
 
 # Debug flags
@@ -23,8 +23,9 @@ SRCS = src/main.c \
        src/tcp_proxy.c \
        src/udp_proxy.c \
        src/tls.c \
-       src/ssh.c \
+       src/ssh_encrypt.c \
        src/table_crypt.c \
+       src/encrypt.c \
        src/inih/ini.c
 
 # Object files
@@ -35,7 +36,8 @@ TEST_SRCS = tests/test_framework.c \
             tests/test_config.c \
             tests/test_cmdline.c \
             tests/test_jwt.c \
-            tests/test_protocol.c
+            tests/test_protocol.c \
+            tests/test_ssh_encrypt.c
 TEST_OBJS = $(TEST_SRCS:.c=.o)
 
 # Test runner
@@ -104,7 +106,7 @@ test-standalone: $(TARGET)
 # Clean build files
 clean:
 	rm -f $(OBJS) $(TEST_OBJS) $(TEST_RUNNER_OBJ) $(TARGET) $(TEST_RUNNER)
-	rm -f tests/test_config tests/test_cmdline tests/test_jwt tests/test_protocol
+	rm -f tests/test_config tests/test_cmdline tests/test_jwt tests/test_protocol tests/test_ssh_encrypt
 	rm -f tests/test_integration_simple tests/test_jwt_standalone tests/test_cmdline_standalone
 	rm -f *.exe tests/*.exe
 	find . -name "*.o" -delete

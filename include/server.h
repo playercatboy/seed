@@ -17,15 +17,6 @@
 /** Maximum number of proxy mappings */
 #define MAX_PROXY_MAPPINGS 256
 
-/** Client connection states */
-enum client_state {
-    CLIENT_STATE_DISCONNECTED = 0,
-    CLIENT_STATE_CONNECTED,
-    CLIENT_STATE_AUTHENTICATING,
-    CLIENT_STATE_AUTHENTICATED,
-    CLIENT_STATE_ERROR
-};
-
 /** Proxy mapping structure */
 struct proxy_mapping {
     char proxy_id[64];                  /** Unique proxy ID */
@@ -51,8 +42,8 @@ struct proxy_mapping {
     time_t created_time;                /** Creation time */
 };
 
-/** Client session structure */
-struct client_session {
+/** Server client session structure */
+struct server_client_session {
     struct connection *conn;            /** Network connection */
     enum client_state state;            /** Client state */
     char username[64];                  /** Authenticated username */
@@ -76,7 +67,7 @@ struct server_context {
     struct seed_config *config;         /** Configuration */
     
     /* Client management */
-    struct client_session clients[MAX_CONNECTIONS];
+    struct server_client_session clients[MAX_CONNECTIONS];
     int active_clients;                 /** Number of active clients */
     
     /* Proxy mappings */
@@ -164,7 +155,7 @@ void server_handle_disconnection(struct server_context *ctx, struct connection *
  *
  * @return Client session pointer, or NULL if not found
  */
-struct client_session *server_find_client(struct server_context *ctx, struct connection *conn);
+struct server_client_session *server_find_client(struct server_context *ctx, struct connection *conn);
 
 /**
  * @brief Create proxy mapping
@@ -175,7 +166,7 @@ struct client_session *server_find_client(struct server_context *ctx, struct con
  *
  * @return 0 on success, negative error code on failure
  */
-int server_create_proxy_mapping(struct server_context *ctx, struct client_session *client,
+int server_create_proxy_mapping(struct server_context *ctx, struct server_client_session *client,
                                const struct msg_proxy_request *request);
 
 /**

@@ -8,8 +8,8 @@ Seed supports multiple encryption methods to secure data transmission and config
 
 - **Table Encryption**: Fast, lightweight encryption for UDP traffic using byte substitution tables
 - **Encrypted Auth Files**: Secure storage for authentication databases using table encryption
-- **TLS Encryption**: Industry-standard SSL/TLS encryption for TCP traffic (planned)  
-- **SSH Tunneling**: Secure shell tunneling for TCP traffic (planned)
+- **TLS Encryption**: Industry-standard SSL/TLS encryption for TCP traffic (implemented)  
+- **SSH Tunneling**: Secure shell tunneling for TCP traffic (implemented)
 
 ## Table Encryption (UDP)
 
@@ -132,19 +132,20 @@ tls_verify_peer = true
 4. **Data Transfer**: Encrypted data exchange once handshake completes
 5. **Connection Teardown**: Proper SSL shutdown and resource cleanup
 
-## SSH Tunneling (TCP) - Planned
+## SSH Tunneling (TCP)
 
-SSH tunneling will provide secure shell-based port forwarding for TCP connections.
+SSH tunneling provides secure shell-based port forwarding for TCP connections using the libssh library.
 
-### Planned Features
+### Features
 
 - SSH protocol version 2
 - Key-based and password authentication
-- Port forwarding (local and remote)
-- Connection multiplexing
-- Host key verification
+- SSH tunnel creation and data transfer
+- Connection lifecycle management
+- Host key verification support
+- Graceful fallback when libssh is unavailable
 
-### Planned Configuration
+### Configuration
 
 ```ini
 [tcp_proxy]
@@ -157,9 +158,20 @@ encrypt_impl = ssh
 ssh_host = target.example.com
 ssh_port = 22
 ssh_username = proxyuser
-ssh_private_key = /path/to/ssh_key
-ssh_known_hosts = /path/to/known_hosts
+ssh_password = your_ssh_password           # Password auth
+ssh_private_key = /path/to/ssh_key        # Or key auth
+ssh_known_hosts = /path/to/known_hosts    # Host verification
+ssh_remote_host = localhost               # Target host via SSH
+ssh_remote_port = 5432                    # Target port via SSH
 ```
+
+### How SSH Tunneling Works
+
+1. **SSH Connection**: Client establishes SSH connection to ssh_host:ssh_port
+2. **Authentication**: Using password or private key authentication
+3. **Tunnel Creation**: SSH channel created for port forwarding to ssh_remote_host:ssh_remote_port
+4. **Data Transfer**: All TCP traffic is tunneled through the SSH connection
+5. **Connection Management**: SSH context handles connection lifecycle and cleanup
 
 ## Implementation Status
 
@@ -170,6 +182,11 @@ ssh_known_hosts = /path/to/known_hosts
 - TLS context management with client/server modes
 - Certificate loading and validation
 - Non-blocking TLS handshake processing
+- SSH tunneling implementation using libssh
+- SSH context management and lifecycle
+- SSH key-based and password authentication
+- SSH tunnel creation and data transfer
+- Graceful fallback when libssh unavailable
 - Encrypted authentication file storage
 - Magic header validation for password verification
 - Command-line options for encrypted auth (-e, -p)
@@ -177,17 +194,16 @@ ssh_known_hosts = /path/to/known_hosts
 - Configuration parsing for encryption options
 - Base64 table export/import
 - Comprehensive unit tests for all encryption features
-
-### 🚧 Recently Completed
 - TLS encryption integration with TCP proxies
+- SSH tunneling integration with TCP proxies
 - Configuration examples and documentation
 - Integration with main application flow
 
 ### 📋 Planned
-- SSH tunneling implementation using libssh
 - Performance optimization for high-throughput scenarios
 - Encryption key management and rotation
 - Certificate authority integration
+- SSH connection multiplexing and optimization
 - Monitoring and logging for encrypted connections
 
 ## Usage Examples
@@ -309,6 +325,69 @@ tls_verify_peer = true
 # Server forwards decrypted traffic to target:25565
 ```
 
+### SSH TCP Tunneling Setup
+
+1. **Ensure SSH server is running** on target host:
+```bash
+# Install SSH server (Ubuntu/Debian)
+sudo apt-get install openssh-server
+sudo systemctl enable ssh
+sudo systemctl start ssh
+
+# Configure SSH server (/etc/ssh/sshd_config)
+Port 22
+PasswordAuthentication yes  # or use key-based auth
+AllowTcpForwarding yes      # Required for port forwarding
+```
+
+2. **Generate SSH keys** (optional, for key-based auth):
+```bash
+# Generate SSH key pair
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/seed_proxy_key
+
+# Copy public key to target server
+ssh-copy-id -i ~/.ssh/seed_proxy_key.pub user@ssh-server.example.com
+```
+
+3. **Client Configuration** (client.conf):
+```ini
+[seed]
+mode = client
+server_addr = your-server.com
+server_port = 7000
+username = client1
+password = clientpassword
+
+[database_proxy]
+type = tcp
+local_addr = 127.0.0.1
+local_port = 5432
+remote_port = 5432
+encrypt = true
+encrypt_impl = ssh
+ssh_host = database-server.example.com
+ssh_port = 22
+ssh_username = dbuser
+ssh_password = dbpassword              # Password auth
+# OR use key-based auth:
+# ssh_private_key = ~/.ssh/seed_proxy_key
+ssh_remote_host = localhost
+ssh_remote_port = 5432
+ssh_known_hosts = ~/.ssh/known_hosts
+```
+
+4. **Start the client**:
+```bash
+./seed -f client.conf
+```
+
+5. **Connect your application**:
+```bash
+# Application connects to localhost:5432
+# Traffic is tunneled through SSH to database-server.example.com:5432
+# Provides secure database access through the proxy
+```
+
 ## Security Best Practices
 
 1. **Password Management**:
@@ -317,13 +396,27 @@ tls_verify_peer = true
    - Rotate passwords periodically
    - Use strong passwords (20+ characters, mixed case, numbers, symbols)
 
-2. **Network Security**:
+2. **SSH Security**:
+   - Prefer key-based authentication over passwords
+   - Use strong SSH keys (RSA 4096-bit or Ed25519)
+   - Keep SSH private keys secure with proper file permissions (600)
+   - Regularly update known_hosts file and verify host keys
+   - Use SSH server hardening (disable root login, use fail2ban, etc.)
+   - Consider using SSH certificates for better key management
+
+3. **TLS Security**:
+   - Use strong cipher suites and disable weak protocols
+   - Keep certificates up to date and properly secured
+   - Implement proper certificate validation
+   - Use CA-signed certificates in production (avoid self-signed)
+
+4. **Network Security**:
    - Use firewalls to restrict access to proxy ports
    - Consider VPN or private networks for additional security
    - Monitor connection logs for suspicious activity
    - Use authentication tokens (JWT) for client-server connections
 
-3. **Deployment Security**:
+5. **Deployment Security**:
    - Run with minimal privileges
    - Use secure file permissions for configuration files
    - Enable logging and monitoring

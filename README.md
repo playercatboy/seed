@@ -8,7 +8,7 @@ Seed is a high-performance reverse proxy software inspired by [frp](https://gith
 - **Protocol Support**: TCP and UDP reverse proxy tunneling
 - **Multiple Encryption Options**:
   - **UDP**: Table-based encryption with O(1) performance (implemented)
-  - **TCP**: TLS and SSH port forwarding (planned)
+  - **TCP**: TLS encryption and SSH tunneling (implemented)
 - **JWT Authentication**: Secure token-based authentication system
 - **High Performance**: Built with libuv for async I/O operations
 - **Cross-Platform**: Windows (MSVC) and Linux (GCC) support
@@ -120,6 +120,21 @@ tls_cert_file = /path/to/client.crt
 tls_key_file = /path/to/client.key
 tls_ca_file = /path/to/ca.crt
 tls_verify_peer = true
+
+# TCP Proxy Example with SSH Tunneling
+[secure-app]
+type = tcp
+local_addr = 127.0.0.1
+local_port = 3000
+remote_port = 3000
+encrypt = true
+encrypt_impl = ssh
+ssh_host = ssh-server.example.com
+ssh_port = 22
+ssh_username = username
+ssh_password = password
+ssh_remote_host = localhost
+ssh_remote_port = 3000
 
 # UDP Proxy Example  
 [game-server]
@@ -236,6 +251,7 @@ Test coverage includes:
 - **Encryption Manager** (`src/encrypt.c`) - Pluggable encryption architecture
 - **Table Encryption** (`src/table_encrypt.c`) - Fast UDP packet encryption
 - **TLS Encryption** (`src/tls_encrypt.c`) - OpenSSL-based TCP encryption
+- **SSH Tunneling** (`src/ssh_encrypt.c`) - SSH-based secure TCP tunneling
 
 ### Project Structure
 ```

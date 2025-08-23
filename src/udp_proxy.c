@@ -712,14 +712,14 @@ int udp_proxy_enable_encryption(struct udp_proxy *proxy, const char *password)
     int ret = table_encrypt_init();
     if (ret != 0) {
         log_error("Failed to initialize table encryption module");
-        return SEED_ERROR_GENERAL;
+        return SEED_ERROR;
     }
     
     /* Create encryption context from password */
     ret = table_context_create(password, &proxy->encrypt_ctx);
     if (ret != 0) {
         log_error("Failed to create table encryption context for UDP proxy '%s'", proxy->name);
-        return SEED_ERROR_GENERAL;
+        return SEED_ERROR;
     }
     
     /* Store password for reference */

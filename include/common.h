@@ -69,6 +69,18 @@
 #define SEED_ERROR_NOT_IMPLEMENTED -10
 #define SEED_ERROR_CONNECTION_CLOSED -11
 
+/* Common enumerations */
+
+/** Client connection states */
+enum client_state {
+    CLIENT_STATE_DISCONNECTED = 0,  /**< Not connected to server */
+    CLIENT_STATE_CONNECTING,        /**< Connecting to server */
+    CLIENT_STATE_CONNECTED,         /**< Connected to server */
+    CLIENT_STATE_AUTHENTICATING,    /**< Sending authentication */
+    CLIENT_STATE_AUTHENTICATED,     /**< Successfully authenticated */
+    CLIENT_STATE_ERROR             /**< Error state */
+};
+
 /* Utility macros */
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))

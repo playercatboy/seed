@@ -92,16 +92,16 @@ struct protocol_header {
 #### TCP Proxy (`src/tcp_proxy.c` - stub)
 - **Purpose**: TCP connection forwarding
 - **Features**: Full-duplex data transfer
-- **Encryption**: TLS and SSH support
+- **Encryption**: TLS and SSH tunneling support (implemented)
 
 #### UDP Proxy (`src/udp_proxy.c` - stub)  
 - **Purpose**: UDP packet forwarding
 - **Features**: Stateless packet relay
 - **Encryption**: Custom byte mapping table
 
-#### Encryption Modules (stubs)
+#### Encryption Modules (implemented)
 - `src/tls.c` - TLS encryption for TCP
-- `src/ssh.c` - SSH tunneling for TCP  
+- `src/ssh_encrypt.c` - SSH tunneling for TCP  
 - `src/table_crypt.c` - Table encryption for UDP
 
 ## Memory Management
@@ -214,7 +214,7 @@ encrypt_impl = tls|ssh|table
 5. Server responds with AUTH_RESPONSE (success/failure)
 6. Authenticated clients can create proxy mappings
 
-### Encryption (Planned)
+### Encryption (Implemented)
 - **TCP**: TLS 1.3 or SSH tunneling
 - **UDP**: Custom byte mapping table with key exchange
 - **Authentication**: HMAC-SHA256 signatures for JWT tokens
@@ -233,7 +233,7 @@ encrypt_impl = tls|ssh|table
 
 ### In Progress (50-80%)
 - 🚧 UDP data forwarding
-- 🚧 Encryption implementations (TLS/SSH/Table)
+- ✅ Encryption implementations (TLS/SSH/Table)
 
 ### Planned (0%)
 - 📋 Performance optimization

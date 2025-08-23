@@ -129,6 +129,16 @@ int tcp_proxy_start(struct tcp_proxy *proxy);
 int tcp_proxy_stop(struct tcp_proxy *proxy);
 
 /**
+ * @brief TCP proxy statistics structure
+ */
+struct tcp_proxy_stats {
+    uint64_t total_connections;      /**< Total connections handled */
+    uint64_t active_connections;     /**< Currently active connections */
+    uint64_t total_bytes_transferred; /**< Total bytes transferred */
+    uint64_t bytes_per_second;       /**< Current transfer rate */
+};
+
+/**
  * @brief Get proxy statistics
  * 
  * @param[in]  proxy        TCP proxy instance
@@ -151,15 +161,5 @@ void tcp_connection_close(struct tcp_connection *conn);
  * @param[in] proxy         TCP proxy instance to cleanup
  */
 void tcp_proxy_cleanup(struct tcp_proxy *proxy);
-
-/**
- * @brief TCP proxy statistics structure
- */
-struct tcp_proxy_stats {
-    uint64_t total_connections;      /**< Total connections handled */
-    uint64_t active_connections;     /**< Currently active connections */
-    uint64_t total_bytes_transferred; /**< Total bytes transferred */
-    uint64_t bytes_per_second;       /**< Current transfer rate */
-};
 
 #endif /* TCP_PROXY_H */

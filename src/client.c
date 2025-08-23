@@ -149,22 +149,20 @@ int client_authenticate(struct client_session *session, const char *username, co
     struct protocol_message msg;
     memset(&msg, 0, sizeof(msg));
     
-    msg.header.type = PROTOCOL_TYPE_AUTH_REQUEST;
+    msg.header.type = MSG_TYPE_AUTH_REQUEST;
     msg.header.sequence = 1;
     
-    /* Create simple auth payload with username:password */
-    char auth_payload[320]; /* username(64) + ":" + password(256) */
-    snprintf(auth_payload, sizeof(auth_payload), "%s:%s", username, password);
+    /* Fill auth request payload */
+    strncpy(msg.payload.auth_req.username, username, sizeof(msg.payload.auth_req.username) - 1);
+    strncpy(msg.payload.auth_req.password, password, sizeof(msg.payload.auth_req.password) - 1);
     
-    msg.header.length = strlen(auth_payload);
-    msg.payload = (uint8_t*)auth_payload;
+    msg.header.length = sizeof(struct msg_auth_request);
 
     session->state = CLIENT_STATE_AUTHENTICATING;
 
     /* Send authentication request */
     uint8_t buffer[1024];
-    size_t buffer_size = sizeof(buffer);
-    int ret = protocol_serialize_message(&msg, buffer, &buffer_size);
+    int ret = protocol_serialize(&msg, buffer, sizeof(buffer));
     if (ret != SEED_OK) {
         log_error("Failed to serialize authentication message");
         return ret;
@@ -184,7 +182,7 @@ int client_authenticate(struct client_session *session, const char *username, co
         return SEED_ERROR_OUT_OF_MEMORY;
     }
 
-    uint8_t *data = malloc(buffer_size);
+    uint8_t *data = malloc(ret);
     if (!data) {
         log_error("Failed to allocate message data");
         free(write_req);
@@ -192,9 +190,9 @@ int client_authenticate(struct client_session *session, const char *username, co
         return SEED_ERROR_OUT_OF_MEMORY;
     }
 
-    memcpy(data, buffer, buffer_size);
+    memcpy(data, buffer, ret);
     write_buf->base = (char*)data;
-    write_buf->len = buffer_size;
+    write_buf->len = ret;
     write_req->data = write_buf;
 
     ret = uv_write(write_req, (uv_stream_t*)&session->server_connection,
@@ -349,7 +347,7 @@ int client_handle_message(struct client_session *session, const struct protocol_
     log_debug("Handling message type %d", msg->header.type);
 
     switch (msg->header.type) {
-        case PROTOCOL_TYPE_HELLO_RESPONSE:
+        case MSG_TYPE_HELLO:
             log_info("Received HELLO response from server");
             /* Server accepted our connection, now authenticate */
             session->state = CLIENT_STATE_AUTHENTICATED;
@@ -358,7 +356,7 @@ int client_handle_message(struct client_session *session, const struct protocol_
             }
             break;
 
-        case PROTOCOL_TYPE_AUTH_RESPONSE:
+        case MSG_TYPE_AUTH_RESPONSE:
             log_info("Received authentication response");
             if (msg->header.flags == 0) {
                 log_info("Authentication successful");
@@ -379,17 +377,17 @@ int client_handle_message(struct client_session *session, const struct protocol_
             }
             break;
 
-        case PROTOCOL_TYPE_PROXY_RESPONSE:
+        case MSG_TYPE_PROXY_RESPONSE:
             log_info("Received proxy response");
             /* Handle proxy setup response */
             break;
 
-        case PROTOCOL_TYPE_KEEPALIVE:
+        case MSG_TYPE_KEEPALIVE:
             log_debug("Received keepalive from server");
             /* Server keepalive - no action needed */
             break;
 
-        case PROTOCOL_TYPE_ERROR:
+        case MSG_TYPE_ERROR:
             log_error("Received error from server");
             session->state = CLIENT_STATE_ERROR;
             if (session->on_error) {
@@ -419,15 +417,14 @@ int client_send_keepalive(struct client_session *session)
     /* Create keepalive message */
     struct protocol_message msg;
     memset(&msg, 0, sizeof(msg));
-    msg.header.type = PROTOCOL_TYPE_KEEPALIVE;
+    msg.header.type = MSG_TYPE_KEEPALIVE;
     msg.header.sequence = 0;
     msg.header.length = 0;
-    msg.payload = NULL;
+    /* No payload for keepalive */
 
     /* Serialize and send */
     uint8_t buffer[256];
-    size_t buffer_size = sizeof(buffer);
-    int ret = protocol_serialize_message(&msg, buffer, &buffer_size);
+    int ret = protocol_serialize(&msg, buffer, sizeof(buffer));
     if (ret != SEED_OK) {
         log_error("Failed to serialize keepalive message");
         return ret;
@@ -445,16 +442,16 @@ int client_send_keepalive(struct client_session *session)
         return SEED_ERROR_OUT_OF_MEMORY;
     }
 
-    uint8_t *data = malloc(buffer_size);
+    uint8_t *data = malloc(ret);
     if (!data) {
         free(write_req);
         free(write_buf);
         return SEED_ERROR_OUT_OF_MEMORY;
     }
 
-    memcpy(data, buffer, buffer_size);
+    memcpy(data, buffer, ret);
     write_buf->base = (char*)data;
-    write_buf->len = buffer_size;
+    write_buf->len = ret;
     write_req->data = write_buf;
 
     ret = uv_write(write_req, (uv_stream_t*)&session->server_connection,
@@ -504,14 +501,17 @@ static void on_server_connect(uv_connect_t *req, int status)
     /* Send HELLO message */
     struct protocol_message hello_msg;
     memset(&hello_msg, 0, sizeof(hello_msg));
-    hello_msg.header.type = PROTOCOL_TYPE_HELLO;
+    hello_msg.header.type = MSG_TYPE_HELLO;
     hello_msg.header.sequence = 0;
-    hello_msg.header.length = 0;
-    hello_msg.payload = NULL;
+    hello_msg.header.length = sizeof(struct msg_hello);
+    
+    /* Fill hello payload */
+    strncpy(hello_msg.payload.hello.client_id, "client_001", sizeof(hello_msg.payload.hello.client_id) - 1);
+    hello_msg.payload.hello.protocol_version = PROTOCOL_VERSION;
+    hello_msg.payload.hello.capabilities = 0;
 
     uint8_t buffer[256];
-    size_t buffer_size = sizeof(buffer);
-    ret = protocol_serialize_message(&hello_msg, buffer, &buffer_size);
+    ret = protocol_serialize(&hello_msg, buffer, sizeof(buffer));
     if (ret != SEED_OK) {
         log_error("Failed to serialize HELLO message");
         session->state = CLIENT_STATE_ERROR;
@@ -534,16 +534,16 @@ static void on_server_connect(uv_connect_t *req, int status)
         return;
     }
 
-    uint8_t *data = malloc(buffer_size);
+    uint8_t *data = malloc(ret);
     if (!data) {
         free(write_req);
         free(write_buf);
         return;
     }
 
-    memcpy(data, buffer, buffer_size);
+    memcpy(data, buffer, ret);
     write_buf->base = (char*)data;
-    write_buf->len = buffer_size;
+    write_buf->len = ret;
     write_req->data = write_buf;
 
     ret = uv_write(write_req, (uv_stream_t*)&session->server_connection,
@@ -596,7 +596,7 @@ static void on_server_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *b
 
     /* Parse received message */
     struct protocol_message msg;
-    int ret = protocol_parse_message((const uint8_t*)buf->base, nread, &msg);
+    int ret = protocol_deserialize(&msg, (const uint8_t*)buf->base, nread);
     if (ret == SEED_OK) {
         client_handle_message(session, &msg);
     } else {

@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
         log_info("Starting client with %d proxy instances", config.proxy_count);
         
         /* Initialize network context */
-        client_result = network_init(&network_ctx);
+        client_result = network_init(&network_ctx, NULL);
         if (client_result != SEED_OK) {
             log_error("Failed to initialize network context");
             config_free(&config);

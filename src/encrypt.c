@@ -7,6 +7,7 @@
 
 #include "encrypt.h"
 #include "tls_encrypt.h"
+#include "ssh_encrypt.h"
 #include "log.h"
 #include <stdlib.h>
 #include <string.h>
@@ -36,7 +37,12 @@ int encrypt_init(void)
         /* Continue anyway - TLS is optional */
     }
     
-    /* TODO: Initialize SSH encryption when implemented */
+    /* Initialize SSH encryption module */
+    ret = ssh_encrypt_init();
+    if (ret != 0) {
+        log_warning("Failed to initialize SSH encryption module (may not be available)");
+        /* Continue anyway - SSH is optional */
+    }
     
     encrypt_initialized = true;
     log_info("Encryption subsystem initialized");
@@ -56,7 +62,9 @@ void encrypt_cleanup(void)
     
     /* Cleanup TLS encryption */
     tls_encrypt_cleanup();
-    /* TODO: Cleanup SSH encryption when implemented */
+    
+    /* Cleanup SSH encryption */
+    ssh_encrypt_cleanup();
     
     encrypt_initialized = false;
     log_info("Encryption subsystem cleaned up");
@@ -159,10 +167,42 @@ int encrypt_create_instance(const struct proxy_config *proxy_config,
                 free(enc);
                 return -1;
             }
-            /* TODO: Create SSH context when implemented */
-            log_warning("SSH encryption not yet implemented");
-            free(enc);
-            return -1;
+            /* Create SSH configuration */
+            struct ssh_config ssh_cfg = {0};
+            ssh_cfg.server_mode = false;  /* Client mode by default */
+            ssh_cfg.port = proxy_config->ssh_port > 0 ? proxy_config->ssh_port : 22;
+            
+            /* Use config values */
+            if (strlen(proxy_config->ssh_host) > 0) {
+                strncpy(ssh_cfg.host, proxy_config->ssh_host, sizeof(ssh_cfg.host) - 1);
+            }
+            if (strlen(proxy_config->ssh_username) > 0) {
+                strncpy(ssh_cfg.username, proxy_config->ssh_username, sizeof(ssh_cfg.username) - 1);
+            }
+            if (strlen(proxy_config->ssh_password) > 0) {
+                strncpy(ssh_cfg.password, proxy_config->ssh_password, sizeof(ssh_cfg.password) - 1);
+            }
+            if (strlen(proxy_config->ssh_private_key) > 0) {
+                strncpy(ssh_cfg.private_key, proxy_config->ssh_private_key, sizeof(ssh_cfg.private_key) - 1);
+            }
+            if (strlen(proxy_config->ssh_known_hosts) > 0) {
+                strncpy(ssh_cfg.known_hosts, proxy_config->ssh_known_hosts, sizeof(ssh_cfg.known_hosts) - 1);
+            }
+            if (strlen(proxy_config->ssh_remote_host) > 0) {
+                strncpy(ssh_cfg.remote_host, proxy_config->ssh_remote_host, sizeof(ssh_cfg.remote_host) - 1);
+            } else {
+                strcpy(ssh_cfg.remote_host, "127.0.0.1"); /* Default */
+            }
+            ssh_cfg.remote_port = proxy_config->ssh_remote_port > 0 ? 
+                                proxy_config->ssh_remote_port : proxy_config->remote_port;
+            
+            ret = ssh_context_create(&ssh_cfg, &enc->ctx.ssh);
+            if (ret != 0) {
+                log_error("Failed to create SSH encryption context");
+                free(enc);
+                return ret;
+            }
+            break;
             
         default:
             log_error("Unknown encryption type: %d", proxy_config->encrypt_impl);
@@ -208,7 +248,10 @@ void encrypt_destroy_instance(struct encryption_instance *instance)
             break;
             
         case ENCRYPT_SSH:
-            /* TODO: Cleanup SSH context when implemented */
+            if (instance->ctx.ssh) {
+                ssh_context_destroy(instance->ctx.ssh);
+                instance->ctx.ssh = NULL;
+            }
             break;
     }
     
@@ -290,9 +333,12 @@ int encrypt_process_handshake(struct encryption_instance *instance,
                                input, input_len, output, output_len);
             
         case ENCRYPT_SSH:
-            /* TODO: Process SSH handshakes when implemented */
-            log_error("SSH handshake processing not yet implemented");
-            return -1;
+            if (!instance->ctx.ssh) {
+                log_error("SSH context not initialized");
+                return -1;
+            }
+            /* SSH handshake is handled during connection establishment */
+            return ssh_is_ready(instance->ctx.ssh) ? 1 : 0;
             
         default:
             log_error("Unknown encryption type for handshake: %s",
@@ -362,9 +408,19 @@ int encrypt_data(struct encryption_instance *instance,
                              plaintext, plain_len, ciphertext, cipher_len);
             
         case ENCRYPT_SSH:
-            /* TODO: Implement SSH encryption */
-            log_error("SSH encryption not yet implemented");
-            return -1;
+            if (!instance->ctx.ssh) {
+                log_error("SSH context not initialized");
+                return -1;
+            }
+            /* SSH encryption is handled by sending data through tunnel */
+            int bytes_sent = ssh_send_data(instance->ctx.ssh, plaintext, plain_len);
+            if (bytes_sent < 0) {
+                return bytes_sent;
+            }
+            /* For SSH, we don't return encrypted data but indicate success */
+            *ciphertext = NULL;
+            *cipher_len = 0;
+            return 0;
             
         default:
             log_error("Unknown encryption type: %d", instance->type);
@@ -435,9 +491,29 @@ int decrypt_data(struct encryption_instance *instance,
                              ciphertext, cipher_len, plaintext, plain_len);
             
         case ENCRYPT_SSH:
-            /* TODO: Implement SSH decryption */
-            log_error("SSH decryption not yet implemented");
-            return -1;
+            if (!instance->ctx.ssh) {
+                log_error("SSH context not initialized");
+                return -1;
+            }
+            /* SSH decryption is handled by receiving data from tunnel */
+            char buffer[8192];
+            size_t received = 0;
+            int ssh_ret = ssh_receive_data(instance->ctx.ssh, buffer, sizeof(buffer), &received);
+            if (ssh_ret != 0) {
+                return ssh_ret;
+            }
+            if (received > 0) {
+                *plaintext = malloc(received);
+                if (!*plaintext) {
+                    return SEED_ERROR_OUT_OF_MEMORY;
+                }
+                memcpy(*plaintext, buffer, received);
+                *plain_len = received;
+            } else {
+                *plaintext = NULL;
+                *plain_len = 0;
+            }
+            return 0;
             
         default:
             log_error("Unknown encryption type: %d", instance->type);
@@ -456,6 +532,11 @@ bool encrypt_is_ready(const struct encryption_instance *instance)
     /* For TLS, check if handshake is complete */
     if (instance->type == ENCRYPT_TLS && instance->ctx.tls) {
         return tls_is_ready(instance->ctx.tls);
+    }
+    
+    /* For SSH, check if tunnel is ready */
+    if (instance->type == ENCRYPT_SSH && instance->ctx.ssh) {
+        return ssh_is_ready(instance->ctx.ssh);
     }
     
     return instance->ready;
@@ -497,7 +578,17 @@ int encrypt_get_info(const struct encryption_instance *instance,
             break;
             
         case ENCRYPT_SSH:
-            snprintf(info, info_size, "SSH encryption (not implemented)");
+            if (instance->ctx.ssh) {
+                char ssh_info[256] = {0};
+                if (ssh_get_info(instance->ctx.ssh, ssh_info, sizeof(ssh_info)) == 0) {
+                    snprintf(info, info_size, "SSH tunneling (%s)", ssh_info);
+                } else {
+                    snprintf(info, info_size, "SSH tunneling (ready: %s)", 
+                           encrypt_is_ready(instance) ? "yes" : "no");
+                }
+            } else {
+                snprintf(info, info_size, "SSH tunneling (context not initialized)");
+            }
             break;
             
         default:

@@ -27,12 +27,17 @@
       "Bash(./test_udp_encryption_simple.exe)",
       "Bash(./test_encrypt_core_simple.exe)",
       "Bash(./test_auth_encrypted_simple.exe)",
-      "Bash(./test_cmdline_encrypted_simple.exe)"
+      "Bash(./test_cmdline_encrypted_simple.exe)",
+      "Bash(./test_tls_encrypt_simple.exe)",
+      "Bash(grep:*)",
+      "Bash(sed:*)",
+      "Bash(./test_ssh_simple)"
     ],
     "deny": [],
     "ask": [],
     "additionalDirectories": [
-      "C:\\c\\Users\\me\\Desktop"
+      "C:\\c\\Users\\me\\Desktop",
+      "C:\\mnt\\c\\Code"
     ]
   }
 }

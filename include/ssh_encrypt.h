@@ -11,10 +11,19 @@
 #include "common.h"
 
 #ifdef ENABLE_SSH_ENCRYPTION
+/* Only include libssh headers if SSH encryption is enabled and available */
+#if __has_include(<libssh/libssh.h>)
 #include <libssh/libssh.h>
 #include <libssh/server.h>
 #else
-/* Forward declarations for libssh types */
+/* libssh headers not available, define stubs */
+typedef void* ssh_session;
+typedef void* ssh_channel;
+typedef void* ssh_bind;
+#undef ENABLE_SSH_ENCRYPTION
+#endif
+#else
+/* SSH encryption disabled, use forward declarations */
 typedef void* ssh_session;
 typedef void* ssh_channel;
 typedef void* ssh_bind;

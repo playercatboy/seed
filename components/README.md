@@ -58,7 +58,7 @@ components/openssl/
 
 ### libssh (Optional)
 **Version**: 0.11.0+ (currently libssh-0.11.0-289-g118a747a)  
-**Purpose**: SSH tunneling support for TCP encryption  
+**Purpose**: SSH tunneling support for TCP connections (implemented with graceful fallback)  
 **License**: LGPL 2.1  
 **Website**: https://www.libssh.org/  
 **Git Repository**: https://git.libssh.org/projects/libssh.git  
@@ -154,9 +154,9 @@ The `seed.vcxproj` file includes these paths:
 
 ### Makefile
 The Makefile includes these settings:
-- `CFLAGS`: `-I./components/libuv/include -I./components/openssl/include`
-- `LDFLAGS`: `-L./components/libuv/lib -L./components/openssl/lib`  
-- `LIBS`: `-luv -lssl -lcrypto`
+- `CFLAGS`: `-I./components/libuv/include -I./components/openssl/include -I./components/libssh/include`
+- `LDFLAGS`: `-L./components/libuv/lib -L./components/openssl/lib -L./components/libssh/lib`  
+- `LIBS`: `-luv -lssl -lcrypto -lssh` (libssh is optional)
 
 ## Version Compatibility
 
@@ -165,7 +165,7 @@ The Makefile includes these settings:
 | libuv | 1.44.0 | v1.51.0-51-g3b1ac021 | `3b1ac021...` | Core networking |
 | OpenSSL | 1.1.1 | 3.4.0-alpha1-2156-g53eb2363a1 | `53eb2363...` | Cryptography |
 | MbedTLS | 3.0.0 | N/A (not downloaded) | N/A | OpenSSL alternative |
-| libssh | 0.9.0 | libssh-0.11.0-289-g118a747a | `118a747a...` | SSH tunneling (optional) |
+| libssh | 0.9.0 | libssh-0.11.0-289-g118a747a | `118a747a...` | SSH tunneling (optional, implemented) |
 | inih | Any | r61 | `3eda303b...` | INI file parser |
 
 ## Troubleshooting

@@ -18,17 +18,6 @@
 #define MAX_PROXY_INSTANCES 100
 
 /**
- * @brief Client connection state
- */
-enum client_state {
-    CLIENT_STATE_DISCONNECTED,    /**< Not connected to server */
-    CLIENT_STATE_CONNECTING,      /**< Connecting to server */
-    CLIENT_STATE_AUTHENTICATING,  /**< Sending authentication */
-    CLIENT_STATE_AUTHENTICATED,   /**< Successfully authenticated */
-    CLIENT_STATE_ERROR           /**< Error state */
-};
-
-/**
  * @brief Proxy instance configuration
  */
 struct proxy_instance {

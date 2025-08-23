@@ -50,6 +50,16 @@ struct proxy_config {
     char tls_key_file[MAX_PATH_LENGTH];   /** TLS private key file */
     char tls_ca_file[MAX_PATH_LENGTH];    /** TLS CA certificate file */
     bool tls_verify_peer;                 /** Verify peer certificate */
+    
+    /* SSH encryption settings */
+    char ssh_host[256];                   /** SSH server hostname */
+    int ssh_port;                         /** SSH server port */
+    char ssh_username[64];                /** SSH username */
+    char ssh_password[128];               /** SSH password (optional) */
+    char ssh_private_key[MAX_PATH_LENGTH]; /** SSH private key file */
+    char ssh_known_hosts[MAX_PATH_LENGTH]; /** SSH known hosts file */
+    char ssh_remote_host[256];            /** SSH remote host to forward to */
+    int ssh_remote_port;                  /** SSH remote port to forward to */
 };
 
 /** Server configuration */

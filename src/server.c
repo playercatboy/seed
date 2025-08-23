@@ -8,6 +8,7 @@
 #include "server.h"
 #include "log.h"
 #include <signal.h>
+#include <time.h>
 
 /** Global server context for signal handling */
 static struct server_context *g_server_ctx = NULL;
@@ -51,7 +52,7 @@ static void generate_proxy_id(char *proxy_id, size_t buflen, const char *client_
  * @param[in,out] client   Client session
  * @param[in]     auth_req Authentication request
  */
-static void handle_auth_request(struct server_context *ctx, struct client_session *client, 
+static void handle_auth_request(struct server_context *ctx, struct server_client_session *client, 
                                const struct msg_auth_request *auth_req)
 {
     struct protocol_message response;
@@ -110,7 +111,7 @@ static void handle_auth_request(struct server_context *ctx, struct client_sessio
  * @param[in,out] client      Client session
  * @param[in]     proxy_req   Proxy request
  */
-static void handle_proxy_request(struct server_context *ctx, struct client_session *client, 
+static void handle_proxy_request(struct server_context *ctx, struct server_client_session *client, 
                                 const struct msg_proxy_request *proxy_req)
 {
     struct protocol_message response;
@@ -173,7 +174,7 @@ static void handle_proxy_request(struct server_context *ctx, struct client_sessi
  * @param[in,out] client  Client session
  * @param[in]     hello   Hello message
  */
-static void handle_hello(struct server_context *ctx, struct client_session *client, 
+static void handle_hello(struct server_context *ctx, struct server_client_session *client, 
                         const struct msg_hello *hello)
 {
     (void)ctx; /* Unused */
@@ -197,7 +198,7 @@ static void handle_hello(struct server_context *ctx, struct client_session *clie
  * @param[in,out] ctx     Server context
  * @param[in,out] client  Client session
  */
-static void handle_keepalive(struct server_context *ctx, struct client_session *client)
+static void handle_keepalive(struct server_context *ctx, struct server_client_session *client)
 {
     (void)ctx; /* Unused */
     
@@ -430,7 +431,7 @@ void server_cleanup(struct server_context *ctx)
  */
 void server_handle_new_connection(struct server_context *ctx, struct connection *conn)
 {
-    struct client_session *client = NULL;
+    struct server_client_session *client = NULL;
     
     if (!ctx || !conn) return;
     
@@ -449,7 +450,7 @@ void server_handle_new_connection(struct server_context *ctx, struct connection 
     }
     
     /* Initialize client session */
-    memset(client, 0, sizeof(struct client_session));
+    memset(client, 0, sizeof(struct server_client_session));
     client->conn = conn;
     client->state = CLIENT_STATE_CONNECTED;
     client->connect_time = time(NULL);
@@ -475,7 +476,7 @@ void server_handle_new_connection(struct server_context *ctx, struct connection 
 void server_handle_message(struct server_context *ctx, struct connection *conn, 
                           const struct protocol_message *msg)
 {
-    struct client_session *client;
+    struct server_client_session *client;
     
     if (!ctx || !conn || !msg) return;
     
@@ -529,7 +530,7 @@ void server_handle_message(struct server_context *ctx, struct connection *conn,
  */
 void server_handle_disconnection(struct server_context *ctx, struct connection *conn)
 {
-    struct client_session *client;
+    struct server_client_session *client;
     
     if (!ctx || !conn) return;
     
@@ -546,7 +547,7 @@ void server_handle_disconnection(struct server_context *ctx, struct connection *
     /* TODO: Clean up proxy mappings for this client */
     
     /* Reset client session */
-    memset(client, 0, sizeof(struct client_session));
+    memset(client, 0, sizeof(struct server_client_session));
     client->state = CLIENT_STATE_DISCONNECTED;
     
     ctx->active_clients--;
@@ -562,7 +563,7 @@ void server_handle_disconnection(struct server_context *ctx, struct connection *
  *
  * @return Client session pointer, or NULL if not found
  */
-struct client_session *server_find_client(struct server_context *ctx, struct connection *conn)
+struct server_client_session *server_find_client(struct server_context *ctx, struct connection *conn)
 {
     if (!ctx || !conn) return NULL;
     
@@ -584,7 +585,7 @@ struct client_session *server_find_client(struct server_context *ctx, struct con
  *
  * @return 0 on success, negative error code on failure
  */
-int server_create_proxy_mapping(struct server_context *ctx, struct client_session *client,
+int server_create_proxy_mapping(struct server_context *ctx, struct server_client_session *client,
                                const struct msg_proxy_request *request)
 {
     struct proxy_mapping *mapping = NULL;

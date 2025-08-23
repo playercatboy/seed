@@ -14,6 +14,7 @@ extern int test_config_main(void);
 extern int test_cmdline_main(void);
 extern int test_jwt_main(void);
 extern int test_protocol_main(void);
+extern int test_ssh_encrypt_main(void);
 
 /**
  * @brief Run individual test and report results
@@ -69,6 +70,9 @@ int main(void)
     test_count++;
     
     total_failures += run_test("Protocol Tests", test_protocol_main);
+    test_count++;
+    
+    total_failures += run_test("SSH Encryption Tests", test_ssh_encrypt_main);
     test_count++;
     
     total_end = clock();
