@@ -13,7 +13,10 @@
       "Bash(./test_main_simple.exe --help)",
       "Bash(./test_main_simple.exe --version)",
       "Bash(./test_main_simple.exe -s mypassword123)",
-      "Bash(./test_main_simple.exe -f custom.conf)"
+      "Bash(./test_main_simple.exe -f custom.conf)",
+      "Bash(find:*)",
+      "Bash(./tests/test_jwt_standalone.exe)",
+      "Bash(./tests/test_cmdline_standalone.exe -s testpass123)"
     ],
     "deny": [],
     "ask": [],

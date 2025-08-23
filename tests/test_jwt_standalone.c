@@ -1,9 +1,16 @@
-#include <stdio.h>
-#include "include/jwt.h"
-#include "include/log.h"
+/**
+ * @file test_jwt_standalone.c
+ * @brief Standalone JWT functionality test
+ * @author Seed Development Team
+ * @date 2025
+ */
 
-int main() {
-    printf("Testing JWT functionality...\n");
+#include <stdio.h>
+#include "../include/jwt.h"
+#include "../include/log.h"
+
+int main(void) {
+    printf("=== JWT Standalone Test ===\n");
     
     log_init(LOG_INFO);
     
@@ -15,7 +22,7 @@ int main() {
         printf("Token length: %d\n", (int)strlen(token));
         printf("Token preview: %.50s...\n", token);
         
-        // Test verification
+        /* Test verification */
         result = jwt_verify("testpassword", token);
         if (result == 0) {
             printf("✓ JWT verification successful\n");
@@ -23,7 +30,7 @@ int main() {
             printf("✗ JWT verification failed\n");
         }
         
-        // Test wrong password
+        /* Test wrong password */
         result = jwt_verify("wrongpassword", token);
         if (result != 0) {
             printf("✓ JWT correctly rejected wrong password\n");
@@ -35,7 +42,6 @@ int main() {
     }
     
     log_cleanup();
-    
-    printf("JWT tests completed!\n");
+    printf("=== JWT Test Complete ===\n");
     return 0;
 }

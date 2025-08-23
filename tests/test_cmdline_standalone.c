@@ -1,14 +1,22 @@
+/**
+ * @file test_cmdline_standalone.c
+ * @brief Standalone command line parsing test
+ * @author Seed Development Team
+ * @date 2025
+ */
+
 #include <stdio.h>
-#include "include/cmdline.h"
-#include "include/jwt.h"
-#include "include/log.h"
+#include "../include/cmdline.h"
+#include "../include/jwt.h"
+#include "../include/log.h"
 
 int main(int argc, char *argv[])
 {
+    printf("=== Command Line Standalone Test ===\n");
+    
     struct cmdline_options options;
     int result;
     
-    printf("Testing Main Program Components...\n");
     log_init(LOG_INFO);
     
     /* Parse command line arguments */
@@ -36,8 +44,9 @@ int main(int argc, char *argv[])
     if (options.hash_password) {
         char token[512];
         
+        printf("Hashing password: %s\n", options.password);
         if (jwt_generate(options.password, token, sizeof(token)) == 0) {
-            printf("JWT Token:\n%s\n", token);
+            printf("\nJWT Token:\n%s\n", token);
             printf("\nAdd this to your seed.auth file as:\n");
             printf("username: %s\n", token);
             cmdline_free(&options);
@@ -50,10 +59,11 @@ int main(int argc, char *argv[])
     }
     
     /* Normal operation */
-    printf("Config file: %s\n", options.config_file);
-    printf("Normal operation would continue here...\n");
+    printf("Configuration file: %s\n", options.config_file);
+    printf("✓ Command line parsing successful\n");
     
     cmdline_free(&options);
     log_cleanup();
+    printf("=== Command Line Test Complete ===\n");
     return 0;
 }

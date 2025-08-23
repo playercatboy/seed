@@ -37,9 +37,16 @@ TEST_SRCS = tests/test_framework.c \
             tests/test_jwt.c \
             tests/test_protocol.c
 TEST_OBJS = $(TEST_SRCS:.c=.o)
+
+# Test runner
 TEST_RUNNER_SRC = tests/run_tests.c
 TEST_RUNNER_OBJ = $(TEST_RUNNER_SRC:.c=.o)
 TEST_RUNNER = test_runner
+
+# Standalone test files
+STANDALONE_TESTS = tests/test_integration_simple.c \
+                  tests/test_jwt_standalone.c \
+                  tests/test_cmdline_standalone.c
 
 # Target executable
 TARGET = seed
@@ -81,10 +88,25 @@ test: $(TARGET) $(TEST_OBJS) $(TEST_RUNNER_OBJ)
 	@echo "Running comprehensive test suite..."
 	./$(TEST_RUNNER)
 
+# Build standalone tests
+test-standalone: $(TARGET)
+	@echo "Building and running standalone tests..."
+	@for test_src in $(STANDALONE_TESTS); do \
+		test_name=$${test_src%.c}; \
+		test_exe=$${test_name##*/}; \
+		echo "Building $$test_exe..."; \
+		$(CC) $(CFLAGS) $$test_src $(filter-out src/main.o, $(OBJS)) -o tests/$$test_exe $(LDFLAGS) $(LIBS); \
+		echo "Running $$test_exe..."; \
+		./tests/$$test_exe; \
+		echo ""; \
+	done
+
 # Clean build files
 clean:
 	rm -f $(OBJS) $(TEST_OBJS) $(TEST_RUNNER_OBJ) $(TARGET) $(TEST_RUNNER)
 	rm -f tests/test_config tests/test_cmdline tests/test_jwt tests/test_protocol
+	rm -f tests/test_integration_simple tests/test_jwt_standalone tests/test_cmdline_standalone
+	rm -f *.exe tests/*.exe
 	find . -name "*.o" -delete
 
 # Install target
@@ -108,15 +130,17 @@ analyze:
 # Help target
 help:
 	@echo "Available targets:"
-	@echo "  all      - Build the seed executable (default)"
-	@echo "  debug    - Build with debug symbols"
-	@echo "  release  - Build with optimizations"
-	@echo "  test     - Build and run tests"
-	@echo "  clean    - Remove build files"
-	@echo "  install  - Install seed to system"
-	@echo "  uninstall- Remove seed from system"
-	@echo "  format   - Format code using clang-format"
-	@echo "  analyze  - Run static analysis"
-	@echo "  help     - Show this help message"
+	@echo "  all           - Build the seed executable (default)"
+	@echo "  debug         - Build with debug symbols"
+	@echo "  release       - Build with optimizations"
+	@echo "  test          - Build and run comprehensive test suite"
+	@echo "  test-individual - Build and run individual unit tests"
+	@echo "  test-standalone - Build and run standalone integration tests"
+	@echo "  clean         - Remove all build files and executables"
+	@echo "  install       - Install seed to system"
+	@echo "  uninstall     - Remove seed from system"
+	@echo "  format        - Format code using clang-format"
+	@echo "  analyze       - Run static analysis"
+	@echo "  help          - Show this help message"
 
-.PHONY: all debug release test clean install uninstall format analyze help
+.PHONY: all debug release test test-individual test-standalone clean install uninstall format analyze help
