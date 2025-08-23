@@ -34,11 +34,12 @@ build/
 bin/
 obj/
 
-# Dependencies
+# Dependencies (third-party library source code)
 components/libuv/
 components/openssl/
 components/mbedtls/
 components/libssh/
+components/inih/
 
 # Config files (except examples)
 seed.conf

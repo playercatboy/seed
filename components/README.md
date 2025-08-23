@@ -1,14 +1,16 @@
 # Third-Party Components
 
-This directory contains third-party libraries required by Seed. These libraries are not included in the repository and must be installed separately.
+This directory contains third-party libraries required by Seed. The source code for these libraries has been downloaded into this directory but is excluded from the repository via .gitignore.
 
 ## Required Dependencies
 
 ### libuv
-**Version**: 1.44.0 or later  
+**Version**: 1.51.0+ (currently v1.51.0-51-g3b1ac021)  
 **Purpose**: High-performance, cross-platform async I/O library  
 **License**: MIT License  
-**Website**: https://libuv.org/
+**Website**: https://libuv.org/  
+**Git Repository**: https://github.com/libuv/libuv.git  
+**Current Commit SHA**: `3b1ac021e323b3e2c460941dec6242176df6ef16`
 
 #### Installation
 - **Windows**: Download precompiled binaries or build from source
@@ -26,13 +28,16 @@ components/libuv/
 ```
 
 ### OpenSSL or MbedTLS
-**Version**: OpenSSL 1.1.1+ or MbedTLS 3.0+  
+**Version**: OpenSSL 3.4.0+ or MbedTLS 3.0+  
 **Purpose**: Cryptographic functions for TLS encryption and JWT tokens  
 **License**: Apache License 2.0 (OpenSSL) / Apache License 2.0 (MbedTLS)
 
 #### OpenSSL (Recommended)
 - **Website**: https://www.openssl.org/
-- **Windows**: Download from https://slproweb.com/products/Win32OpenSSL.html
+- **Git Repository**: https://github.com/openssl/openssl.git
+- **Current Version**: 3.4.0-alpha1+ (openssl-3.4.0-alpha1-2156-g53eb2363a1)
+- **Current Commit SHA**: `53eb2363a1e6336a40a64b3f7b9f09eca95fabef`
+- **Windows**: Download from https://slproweb.com/products/Win32OpenSSL.html or build from source
 - **Linux**: `sudo apt-get install libssl-dev`
 
 #### Directory Structure (OpenSSL)
@@ -51,10 +56,12 @@ components/openssl/
 - **Usage**: Can be used instead of OpenSSL for smaller footprint
 
 ### libssh (Optional)
-**Version**: 0.9.0 or later  
+**Version**: 0.11.0+ (currently libssh-0.11.0-289-g118a747a)  
 **Purpose**: SSH tunneling support for TCP encryption  
-**License**: LGPL  
-**Website**: https://www.libssh.org/
+**License**: LGPL 2.1  
+**Website**: https://www.libssh.org/  
+**Git Repository**: https://git.libssh.org/projects/libssh.git  
+**Current Commit SHA**: `118a747acd1151e45dcf3eb154d48814209a2214`
 
 #### Installation
 - **Windows**: Build from source or use vcpkg
@@ -70,25 +77,48 @@ components/libssh/
 └── README.md
 ```
 
+### inih (INI Parser)
+**Version**: r61 (release 61)  
+**Purpose**: Simple INI file parser for configuration management  
+**License**: BSD 3-Clause  
+**Website**: https://github.com/benhoyt/inih  
+**Git Repository**: https://github.com/benhoyt/inih.git  
+**Current Commit SHA**: `3eda303b34610adc0554bdea08d02a25668c774c`
+
+#### Directory Structure
+```
+components/inih/
+├── ini.c
+├── ini.h
+├── examples/
+├── tests/
+└── README.md
+```
+
 ## Installation Instructions
 
 ### Windows (Visual Studio)
 
-1. **Create components directory structure**:
+1. **Download library source code**:
    ```cmd
-   mkdir components\libuv components\openssl components\libssh
+   cd components
+   git clone https://github.com/libuv/libuv.git
+   git clone https://github.com/openssl/openssl.git
+   git clone https://git.libssh.org/projects/libssh.git
+   git clone https://github.com/benhoyt/inih.git
    ```
 
-2. **Download and extract libraries**:
-   - Extract libuv to `components/libuv/`
-   - Extract OpenSSL to `components/openssl/`
-   - Extract libssh to `components/libssh/` (optional)
+2. **Build libraries** (follow each library's build instructions):
+   - libuv: Use CMake or Visual Studio project files
+   - OpenSSL: Use Configure and nmake
+   - libssh: Use CMake (optional)
+   - inih: Copy ini.c/ini.h to project or build as static library
 
 3. **Verify paths in seed.vcxproj** match your library locations
 
 ### Linux (Make)
 
-1. **Install system packages**:
+**Option 1: Use system packages**:
    ```bash
    # Ubuntu/Debian
    sudo apt-get update
@@ -98,12 +128,19 @@ components/libssh/
    sudo yum install libuv-devel openssl-devel libssh-devel
    ```
 
-2. **For custom builds, create symlinks**:
+**Option 2: Build from source**:
    ```bash
-   mkdir -p components/libuv components/openssl components/libssh
-   ln -s /usr/include components/libuv/include
-   ln -s /usr/lib/x86_64-linux-gnu components/libuv/lib
-   # Similar for other libraries
+   cd components
+   git clone https://github.com/libuv/libuv.git
+   git clone https://github.com/openssl/openssl.git
+   git clone https://git.libssh.org/projects/libssh.git
+   git clone https://github.com/benhoyt/inih.git
+   
+   # Build each library according to their documentation
+   # libuv: mkdir build && cd build && cmake .. && make
+   # OpenSSL: ./Configure && make
+   # libssh: mkdir build && cd build && cmake .. && make
+   # inih: Copy ini.c/ini.h files to src/ directory
    ```
 
 ## Build Integration
@@ -122,12 +159,13 @@ The Makefile includes these settings:
 
 ## Version Compatibility
 
-| Component | Minimum Version | Tested Version | Notes |
-|-----------|----------------|----------------|-------|
-| libuv | 1.44.0 | 1.48.0 | Core networking |
-| OpenSSL | 1.1.1 | 3.0.0 | Cryptography |
-| MbedTLS | 3.0.0 | 3.5.0 | OpenSSL alternative |
-| libssh | 0.9.0 | 0.10.0 | SSH tunneling (optional) |
+| Component | Minimum Version | Current Downloaded Version | Git Commit SHA | Notes |
+|-----------|----------------|---------------------------|----------------|-------|
+| libuv | 1.44.0 | v1.51.0-51-g3b1ac021 | `3b1ac021...` | Core networking |
+| OpenSSL | 1.1.1 | 3.4.0-alpha1-2156-g53eb2363a1 | `53eb2363...` | Cryptography |
+| MbedTLS | 3.0.0 | N/A (not downloaded) | N/A | OpenSSL alternative |
+| libssh | 0.9.0 | libssh-0.11.0-289-g118a747a | `118a747a...` | SSH tunneling (optional) |
+| inih | Any | r61 | `3eda303b...` | INI file parser |
 
 ## Troubleshooting
 
@@ -151,6 +189,13 @@ make test-standalone
 
 If tests pass, all dependencies are correctly installed.
 
+### Source Code Management
+The source code for all dependencies has been downloaded to the components directory:
+- Libraries are excluded from the main repository via .gitignore
+- To update a library: `cd components/<library> && git pull`
+- To checkout a specific version: `cd components/<library> && git checkout <tag-or-commit>`
+- Current versions are locked to the commit SHAs listed above for reproducible builds
+
 ## License Information
 
 This project uses the following third-party libraries:
@@ -159,5 +204,6 @@ This project uses the following third-party libraries:
 - **OpenSSL**: Apache License 2.0 - https://www.openssl.org/source/license.html  
 - **MbedTLS**: Apache License 2.0 - https://github.com/Mbed-TLS/mbedtls/blob/development/LICENSE
 - **libssh**: LGPL 2.1 - https://www.libssh.org/license/
+- **inih**: BSD 3-Clause - https://github.com/benhoyt/inih/blob/master/LICENSE.txt
 
 Please review each license for compliance requirements in your use case.
