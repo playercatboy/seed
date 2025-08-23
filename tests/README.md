@@ -62,12 +62,13 @@ gcc -Wall -Wextra -I../include -o test_jwt_standalone test_jwt_standalone.c ../s
 - **JWT Authentication** - Token generation, verification, password hashing
 - **Protocol Messages** - Serialization, deserialization, validation, CRC32
 - **Logging System** - Log levels, formatting, color output
+- **Client Mode Logic** - Proxy management, state handling, parameter validation
+- **TCP Proxy Logic** - Connection management, lifecycle, statistics tracking
 
 ### 📋 Future Tests
-- Network layer tests (requires libuv)
-- Server mode integration tests
-- Client mode tests (when implemented)
-- TCP/UDP proxy tests (when implemented)
+- Network layer integration tests (requires libuv runtime)
+- Server mode integration tests with live connections
+- UDP proxy tests (when implemented)
 - Encryption module tests (when implemented)
 
 ## Test Framework Features

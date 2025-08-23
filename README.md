@@ -234,12 +234,12 @@ seed/
 - [x] Binary protocol with CRC32 checksums
 - [x] libuv-based async networking core
 - [x] Server mode with client session management
+- [x] Client mode with server authentication and proxy management
+- [x] TCP proxy with full-duplex data forwarding
 - [x] Comprehensive unit and integration tests
 
 ### 🚧 In Progress
-- [ ] Client mode implementation
-- [ ] TCP proxy data forwarding
-- [ ] UDP proxy data forwarding  
+- [ ] UDP proxy data forwarding
 - [ ] TLS encryption for TCP
 - [ ] SSH tunneling for TCP
 - [ ] Table encryption for UDP

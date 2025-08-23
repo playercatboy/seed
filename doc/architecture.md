@@ -227,12 +227,13 @@ encrypt_impl = tls|ssh|table
 - ✅ Network protocol (binary protocol, message handling)  
 - ✅ Network core (libuv integration, connection management)
 - ✅ Server mode (client sessions, proxy registry)
+- ✅ Client mode (server connection, authentication, proxy management)
+- ✅ TCP proxy (full-duplex data forwarding, connection management)
 - ✅ Testing framework (unit tests, integration tests)
 
-### In Progress (0-50%)
-- 🚧 Client mode implementation
-- 🚧 TCP/UDP data forwarding
-- 🚧 Encryption implementations
+### In Progress (50-80%)
+- 🚧 UDP data forwarding
+- 🚧 Encryption implementations (TLS/SSH/Table)
 
 ### Planned (0%)
 - 📋 Performance optimization

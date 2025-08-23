@@ -86,18 +86,19 @@ Client mode requires `[seed]` and proxy instance sections.
 - **Security**: JWT authentication with SHA256 hashing  
 - **Network**: libuv-based async I/O with custom binary protocol
 - **Server Mode**: Client session management and proxy registry
+- **Client Mode**: Server authentication, proxy management, keepalive
+- **TCP Proxy**: Full-duplex data forwarding with connection management
 - **Testing**: Comprehensive unit tests and integration tests
 
 ### 🚧 In Progress
-- Client mode implementation
-- TCP/UDP proxy data forwarding
+- UDP proxy data forwarding
 - Encryption layers (TLS/SSH/Table)
 
 ### 📋 Next Steps
-- Complete client-server communication
-- Implement data tunneling
-- Add encryption support
+- Complete UDP proxy implementation
+- Add encryption support for TCP (TLS/SSH) and UDP (Table)
 - Performance optimization
+- Advanced monitoring and statistics
 
 ## Development Workflow
 
