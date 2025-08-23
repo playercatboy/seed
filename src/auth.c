@@ -296,3 +296,273 @@ void auth_db_free(struct auth_db *db)
         memset(db, 0, sizeof(struct auth_db));
     }
 }
+
+int auth_db_load_encrypted(const char *filename, const char *password, struct auth_db *db)
+{
+    FILE *file;
+    uint8_t *encrypted_data = NULL;
+    char *decrypted_data = NULL;
+    size_t file_size, data_size;
+    struct table_encrypt_context *ctx = NULL;
+    int ret = SEED_ERROR;
+    
+    /* Magic header for validation */
+    const char magic_header[] = "SEED_AUTH_ENC_V1\n";
+    
+    if (!filename || !password || !db) {
+        log_error("Invalid arguments to auth_db_load_encrypted");
+        return SEED_ERROR_INVALID_ARGS;
+    }
+    
+    /* Initialize table encryption */
+    ret = table_encrypt_init();
+    if (ret != 0) {
+        log_error("Failed to initialize table encryption");
+        return SEED_ERROR;
+    }
+    
+    /* Create encryption context */
+    ret = table_context_create(password, &ctx);
+    if (ret != 0) {
+        log_error("Failed to create encryption context for auth file");
+        return SEED_ERROR;
+    }
+    
+    /* Open encrypted file */
+    file = fopen(filename, "rb");
+    if (!file) {
+        log_error("Failed to open encrypted auth file: %s", filename);
+        table_context_destroy(ctx);
+        return SEED_ERROR_FILE_NOT_FOUND;
+    }
+    
+    /* Get file size */
+    fseek(file, 0, SEEK_END);
+    file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    
+    if (file_size == 0) {
+        log_warning("Empty encrypted auth file: %s", filename);
+        auth_db_init(db);
+        fclose(file);
+        table_context_destroy(ctx);
+        return SEED_OK;
+    }
+    
+    /* Allocate buffer for encrypted data */
+    encrypted_data = malloc(file_size);
+    if (!encrypted_data) {
+        log_error("Failed to allocate memory for encrypted auth data");
+        fclose(file);
+        table_context_destroy(ctx);
+        return SEED_ERROR_OUT_OF_MEMORY;
+    }
+    
+    /* Read encrypted data */
+    data_size = fread(encrypted_data, 1, file_size, file);
+    fclose(file);
+    
+    if (data_size != file_size) {
+        log_error("Failed to read complete encrypted auth file");
+        free(encrypted_data);
+        table_context_destroy(ctx);
+        return SEED_ERROR_CONFIG;
+    }
+    
+    /* Decrypt data in-place */
+    ret = table_decrypt_data(ctx, encrypted_data, data_size);
+    if (ret != 0) {
+        log_error("Failed to decrypt auth file data");
+        free(encrypted_data);
+        table_context_destroy(ctx);
+        return SEED_ERROR;
+    }
+    
+    /* Null-terminate the decrypted data */
+    decrypted_data = malloc(data_size + 1);
+    if (!decrypted_data) {
+        log_error("Failed to allocate memory for decrypted auth data");
+        free(encrypted_data);
+        table_context_destroy(ctx);
+        return SEED_ERROR_OUT_OF_MEMORY;
+    }
+    
+    memcpy(decrypted_data, encrypted_data, data_size);
+    decrypted_data[data_size] = '\0';
+    
+    /* Clean up encrypted data */
+    memset(encrypted_data, 0, data_size);
+    free(encrypted_data);
+    table_context_destroy(ctx);
+    
+    /* Validate magic header */
+    if (strlen(decrypted_data) < strlen(magic_header) || 
+        memcmp(decrypted_data, magic_header, strlen(magic_header)) != 0) {
+        log_error("Invalid magic header in encrypted auth file (wrong password?)");
+        memset(decrypted_data, 0, strlen(decrypted_data));
+        free(decrypted_data);
+        return SEED_ERROR_AUTH_FAILED;
+    }
+    
+    /* Parse decrypted data */
+    auth_db_init(db);
+    
+    /* Skip magic header */
+    char *line_start = decrypted_data + strlen(magic_header);
+    char *line_end;
+    int line_num = 0;
+    
+    while (line_start && *line_start) {
+        line_num++;
+        line_end = strchr(line_start, '\n');
+        
+        if (line_end) {
+            *line_end = '\0';
+        }
+        
+        /* Remove carriage return if present */
+        char *cr = strchr(line_start, '\r');
+        if (cr) *cr = '\0';
+        
+        /* Skip empty lines and comments */
+        if (*line_start != '\0' && *line_start != '#' && *line_start != ';') {
+            char *colon = strchr(line_start, ':');
+            if (colon) {
+                *colon = '\0';
+                char *username = trim_whitespace(line_start);
+                char *token = trim_whitespace(colon + 1);
+                
+                if (strlen(username) > 0 && strlen(token) > 0) {
+                    ret = auth_db_add_user(db, username, token);
+                    if (ret != SEED_OK) {
+                        log_warning("Failed to add user '%s' from encrypted auth file", username);
+                    }
+                }
+            } else {
+                log_warning("Invalid auth entry at line %d in encrypted file (missing colon)", line_num);
+            }
+        }
+        
+        if (!line_end) break;
+        line_start = line_end + 1;
+    }
+    
+    /* Clean up decrypted data */
+    memset(decrypted_data, 0, strlen(decrypted_data));
+    free(decrypted_data);
+    
+    log_info("Loaded encrypted auth file with %d users", db->user_count);
+    return SEED_OK;
+}
+
+int auth_db_save_encrypted(const char *filename, const char *password, const struct auth_db *db)
+{
+    FILE *file;
+    char *plaintext_data = NULL;
+    uint8_t *encrypted_data = NULL;
+    size_t data_len, total_len = 0;
+    struct table_encrypt_context *ctx = NULL;
+    int ret = SEED_ERROR;
+    
+    /* Magic header for validation */
+    const char magic_header[] = "SEED_AUTH_ENC_V1\n";
+    
+    if (!filename || !password || !db) {
+        log_error("Invalid arguments to auth_db_save_encrypted");
+        return SEED_ERROR_INVALID_ARGS;
+    }
+    
+    /* Initialize table encryption */
+    ret = table_encrypt_init();
+    if (ret != 0) {
+        log_error("Failed to initialize table encryption");
+        return SEED_ERROR;
+    }
+    
+    /* Create encryption context */
+    ret = table_context_create(password, &ctx);
+    if (ret != 0) {
+        log_error("Failed to create encryption context for auth file");
+        return SEED_ERROR;
+    }
+    
+    /* Calculate required buffer size */
+    total_len = strlen(magic_header);
+    for (int i = 0; i < db->user_count; i++) {
+        total_len += strlen(db->users[i].username) + strlen(db->users[i].token) + 3; /* username: token\n */
+    }
+    
+    if (total_len == strlen(magic_header)) {
+        /* Only header, no users */
+        total_len = strlen(magic_header);
+    }
+    
+    /* Allocate buffer for plaintext data */
+    plaintext_data = malloc(total_len + 1);
+    if (!plaintext_data) {
+        log_error("Failed to allocate memory for auth plaintext");
+        table_context_destroy(ctx);
+        return SEED_ERROR_OUT_OF_MEMORY;
+    }
+    
+    /* Build plaintext content with magic header */
+    strcpy(plaintext_data, magic_header);
+    for (int i = 0; i < db->user_count; i++) {
+        char line[512];
+        snprintf(line, sizeof(line), "%s: %s\n", 
+                db->users[i].username, db->users[i].token);
+        strcat(plaintext_data, line);
+    }
+    
+    data_len = strlen(plaintext_data);
+    
+    /* Allocate buffer for encrypted data */
+    encrypted_data = malloc(data_len);
+    if (!encrypted_data) {
+        log_error("Failed to allocate memory for encrypted auth data");
+        memset(plaintext_data, 0, strlen(plaintext_data));
+        free(plaintext_data);
+        table_context_destroy(ctx);
+        return SEED_ERROR_OUT_OF_MEMORY;
+    }
+    
+    /* Encrypt data */
+    ret = table_encrypt_copy(ctx, (const uint8_t*)plaintext_data, encrypted_data, data_len);
+    if (ret != 0) {
+        log_error("Failed to encrypt auth file data");
+        memset(plaintext_data, 0, strlen(plaintext_data));
+        free(plaintext_data);
+        free(encrypted_data);
+        table_context_destroy(ctx);
+        return SEED_ERROR;
+    }
+    
+    /* Clean up plaintext data */
+    memset(plaintext_data, 0, strlen(plaintext_data));
+    free(plaintext_data);
+    table_context_destroy(ctx);
+    
+    /* Write encrypted data to file */
+    file = fopen(filename, "wb");
+    if (!file) {
+        log_error("Failed to create encrypted auth file: %s", filename);
+        memset(encrypted_data, 0, data_len);
+        free(encrypted_data);
+        return SEED_ERROR_CONFIG;
+    }
+    
+    size_t written = fwrite(encrypted_data, 1, data_len, file);
+    fclose(file);
+    
+    /* Clean up encrypted data */
+    memset(encrypted_data, 0, data_len);
+    free(encrypted_data);
+    
+    if (written != data_len) {
+        log_error("Failed to write complete encrypted auth file");
+        return SEED_ERROR_CONFIG;
+    }
+    
+    log_info("Saved encrypted auth file with %d users", db->user_count);
+    return SEED_OK;
+}

@@ -117,10 +117,12 @@ static int getopt_long(int argc, char *const argv[], const char *optstring,
 
 /** Long options for getopt */
 static struct option long_options[] = {
-    {"help",    no_argument,       0, 'h'},
-    {"version", no_argument,       0, 'v'},
-    {"file",    required_argument, 0, 'f'},
-    {"hash",    required_argument, 0, 's'},
+    {"help",         no_argument,       0, 'h'},
+    {"version",      no_argument,       0, 'v'},
+    {"file",         required_argument, 0, 'f'},
+    {"hash",         required_argument, 0, 's'},
+    {"encrypted-auth", no_argument,     0, 'e'},
+    {"auth-password", required_argument, 0, 'p'},
     {0, 0, 0, 0}
 };
 
@@ -146,7 +148,7 @@ int cmdline_parse(int argc, char *argv[], struct cmdline_options *options)
     memset(options, 0, sizeof(struct cmdline_options));
     
     /* Parse arguments */
-    while ((opt = getopt_long(argc, argv, "hvf:s:", long_options, &option_index)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hvf:s:ep:", long_options, &option_index)) != -1) {
         switch (opt) {
         case 'h':
             options->show_help = true;
@@ -171,6 +173,18 @@ int cmdline_parse(int argc, char *argv[], struct cmdline_options *options)
                 return SEED_ERROR_OUT_OF_MEMORY;
             }
             return SEED_OK;
+            
+        case 'e':
+            options->use_encrypted_auth = true;
+            break;
+            
+        case 'p':
+            options->auth_password = strdup(optarg);
+            if (!options->auth_password) {
+                cmdline_free(options);
+                return SEED_ERROR_OUT_OF_MEMORY;
+            }
+            break;
             
         case '?':
             /* Invalid option */
@@ -206,10 +220,13 @@ void cmdline_print_help(const char *program_name)
     printf("  -v, --version           Print version information and exit\n");
     printf("  -f, --file <path>       Specify configuration file (default: %s)\n", DEFAULT_CONFIG_FILE);
     printf("  -s, --hash <password>   Hash a password to JWT token and exit\n");
+    printf("  -e, --encrypted-auth    Use encrypted authentication file\n");
+    printf("  -p, --auth-password <p> Password for encrypted auth file\n");
     printf("\nExamples:\n");
     printf("  %s                      Start with default configuration\n", program_name);
     printf("  %s -f /etc/seed.conf    Start with custom configuration file\n", program_name);
     printf("  %s -s mypassword        Generate JWT token for password\n", program_name);
+    printf("  %s -e -p authpass       Use encrypted auth file with password\n", program_name);
     printf("\nFor more information, see the documentation at:\n");
     printf("  https://github.com/yourusername/seed\n");
 }
@@ -236,6 +253,7 @@ void cmdline_free(struct cmdline_options *options)
     if (options) {
         SAFE_FREE(options->config_file);
         SAFE_FREE(options->password);
+        SAFE_FREE(options->auth_password);
         memset(options, 0, sizeof(struct cmdline_options));
     }
 }

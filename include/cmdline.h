@@ -17,6 +17,8 @@ struct cmdline_options {
     bool hash_password;     /** Hash password mode */
     char *config_file;      /** Configuration file path */
     char *password;         /** Password to hash */
+    bool use_encrypted_auth; /** Use encrypted auth file */
+    char *auth_password;    /** Password for encrypted auth file */
 };
 
 /**

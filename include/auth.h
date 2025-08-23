@@ -9,6 +9,7 @@
 #define AUTH_H
 
 #include "common.h"
+#include "table_encrypt.h"
 
 /** Maximum number of users */
 #define MAX_USERS 100
@@ -51,6 +52,28 @@ int auth_db_load(const char *filename, struct auth_db *db);
  * @return 0 on success, negative error code on failure
  */
 int auth_db_save(const char *filename, const struct auth_db *db);
+
+/**
+ * @brief Load encrypted authentication database from file
+ *
+ * @param[in]  filename  Authentication file path
+ * @param[in]  password  Password for decryption
+ * @param[out] db        Database structure to fill
+ *
+ * @return 0 on success, negative error code on failure
+ */
+int auth_db_load_encrypted(const char *filename, const char *password, struct auth_db *db);
+
+/**
+ * @brief Save authentication database to encrypted file
+ *
+ * @param[in] filename  Authentication file path
+ * @param[in] password  Password for encryption
+ * @param[in] db        Database structure to save
+ *
+ * @return 0 on success, negative error code on failure
+ */
+int auth_db_save_encrypted(const char *filename, const char *password, const struct auth_db *db);
 
 /**
  * @brief Add user to database
