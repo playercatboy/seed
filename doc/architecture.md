@@ -187,10 +187,13 @@ encrypt_impl = tls|ssh|table
 - **Dependencies**: libuv, OpenSSL/MbedTLS, libssh
 
 ### Test Architecture
-- **Unit Tests**: Individual module testing
-- **Integration Tests**: Cross-module functionality
-- **Test Framework**: Custom assertion framework
-- **Coverage**: All implemented modules tested
+- **Unit Tests**: Individual module testing with custom assertion framework
+- **Integration Tests**: Cross-module functionality and end-to-end validation
+- **Network Tests**: Multi-threaded TCP/UDP echo servers with platform-specific threading
+- **Data Integrity**: memcmp() payload verification for networking accuracy
+- **Cross-Platform**: Windows (CreateThread) and Linux (POSIX threads) support
+- **Test Framework**: Custom assertion framework with comprehensive coverage
+- **Coverage**: All implemented modules including networking and threading tested
 
 ## Performance Characteristics
 

@@ -15,6 +15,10 @@ This directory contains the comprehensive test suite for the Seed reverse proxy 
 - `test_integration_simple.c` - Basic integration test combining multiple modules
 - `test_jwt_standalone.c` - Standalone JWT functionality test
 - `test_cmdline_standalone.c` - Standalone command line test with JWT integration
+- `test_full_integration.c` - Comprehensive TCP/UDP proxy integration test
+- `test_seed_integration.c` - Practical integration test with echo servers
+- `test_echo_simple.c` - Multi-threaded TCP/UDP echo server test
+- `test_proxy_concept.c` - Conceptual proxy flow demonstration
 
 ### Test Runner
 - `run_tests.c` - Comprehensive test runner that executes all unit tests
@@ -64,6 +68,11 @@ gcc -Wall -Wextra -I../include -o test_jwt_standalone test_jwt_standalone.c ../s
 - **Logging System** - Log levels, formatting, color output
 - **Client Mode Logic** - Proxy management, state handling, parameter validation
 - **TCP Proxy Logic** - Connection management, lifecycle, statistics tracking
+- **TCP/UDP Echo Servers** - Multi-threaded echo server implementation
+- **Cross-Platform Networking** - Windows and Linux socket programming
+- **Data Integrity Verification** - memcmp() payload validation
+- **Thread Management** - Platform-specific threading (POSIX/Windows)
+- **End-to-End Proxy Flow** - Complete proxy simulation testing
 
 ### 📋 Future Tests
 - Network layer integration tests (requires libuv runtime)
@@ -80,6 +89,7 @@ gcc -Wall -Wextra -I../include -o test_jwt_standalone test_jwt_standalone.c ../s
 
 ## Example Test Output
 
+### JWT Test
 ```
 === JWT Standalone Test ===
 ✓ JWT generation successful
@@ -88,6 +98,35 @@ Token preview: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ✓ JWT verification successful  
 ✓ JWT correctly rejected wrong password
 === JWT Test Complete ===
+```
+
+### Integration Test
+```
+Seed Integration Test - Echo Server Verification
+================================================
+Test payload: 'Hello, Seed Proxy Test!' (size: 24 bytes)
+
+=== Starting Echo Servers ===
+TCP Echo: Server listening on port 33000
+UDP Echo: Server listening on port 34000
+
+=== Testing TCP Echo ===
+✓ TCP Client connected to server
+✓ TCP Client sent 24 bytes: Hello, Seed Proxy Test!
+✓ TCP Client received 24 bytes: Hello, Seed Proxy Test!
+✅ TCP memcmp() verification PASSED!
+
+=== Testing UDP Echo ===
+✓ UDP Client sent 24 bytes: Hello, Seed Proxy Test!
+✓ UDP Client received 24 bytes: Hello, Seed Proxy Test!
+✅ UDP memcmp() verification PASSED!
+
+=== TEST SUMMARY ===
+TCP Echo Test: ✅ PASSED
+UDP Echo Test: ✅ PASSED
+memcmp() Verification: ✅ PASSED
+
+✅ ALL TESTS PASSED!
 ```
 
 ## Adding New Tests
