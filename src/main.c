@@ -11,6 +11,7 @@
 #include "config.h"
 #include "jwt.h"
 #include "auth.h"
+#include "server.h"
 
 /**
  * @brief Handle password hashing mode
@@ -110,12 +111,46 @@ int main(int argc, char *argv[])
     
     /* Server mode */
     if (config.mode == MODE_SERVER) {
+        struct server_context server_ctx;
+        int server_result;
+        
         log_info("Starting server on %s:%d", 
                  config.server.bind_addr, 
                  config.server.bind_port);
         
-        /* TODO: Implement server mode */
-        log_error("Server mode not yet implemented");
+        /* Initialize server */
+        server_result = server_init(&server_ctx, &config);
+        if (server_result != SEED_OK) {
+            log_error("Failed to initialize server");
+            config_free(&config);
+            cmdline_free(&options);
+            log_cleanup();
+            return EXIT_FAILURE;
+        }
+        
+        /* Start server */
+        server_result = server_start(&server_ctx);
+        if (server_result != SEED_OK) {
+            log_error("Failed to start server");
+            server_cleanup(&server_ctx);
+            config_free(&config);
+            cmdline_free(&options);
+            log_cleanup();
+            return EXIT_FAILURE;
+        }
+        
+        /* Run server main loop */
+        server_result = server_run(&server_ctx);
+        
+        /* Cleanup */
+        server_cleanup(&server_ctx);
+        config_free(&config);
+        cmdline_free(&options);
+        log_cleanup();
+        
+        log_info("Server shutdown completed");
+        
+        return server_result;
     }
     /* Client mode */
     else if (config.mode == MODE_CLIENT) {
@@ -123,6 +158,12 @@ int main(int argc, char *argv[])
         
         /* TODO: Implement client mode */
         log_error("Client mode not yet implemented");
+        
+        config_free(&config);
+        cmdline_free(&options);
+        log_cleanup();
+        
+        return EXIT_FAILURE;
     }
     
     /* Cleanup */
