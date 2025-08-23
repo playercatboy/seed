@@ -3,9 +3,22 @@
     "allow": [
       "Bash(dir:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Read(/C:\\c\\Users\\me\\Desktop/**)",
+      "Bash(gcc:*)",
+      "Bash(./test_simple.exe)",
+      "Bash(./test_jwt_simple.exe)",
+      "Bash(./test_protocol_simple.exe)",
+      "Bash(./test_cmdline_simple.exe)",
+      "Bash(./test_main_simple.exe --help)",
+      "Bash(./test_main_simple.exe --version)",
+      "Bash(./test_main_simple.exe -s mypassword123)",
+      "Bash(./test_main_simple.exe -f custom.conf)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\c\\Users\\me\\Desktop"
+    ]
   }
 }

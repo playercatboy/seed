@@ -128,7 +128,7 @@ static enum encrypt_impl parse_encrypt_impl(const char *value, enum proxy_type t
  *
  * @return 1 on success, 0 on error
  */
-static int ini_handler(void *user, const char *section, const char *name, const char *value)
+static int config_ini_handler(void *user, const char *section, const char *name, const char *value)
 {
     struct seed_config *config = (struct seed_config *)user;
     
@@ -245,7 +245,7 @@ int config_load(const char *filename, struct seed_config *config)
     config_init(config);
     
     /* Parse INI file */
-    result = ini_parse(filename, ini_handler, config);
+    result = ini_parse(filename, config_ini_handler, config);
     if (result < 0) {
         log_error("Failed to open configuration file: %s", filename);
         return SEED_ERROR_FILE_NOT_FOUND;

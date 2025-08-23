@@ -31,8 +31,15 @@ SRCS = src/main.c \
 OBJS = $(SRCS:.c=.o)
 
 # Test source files
-TEST_SRCS = $(wildcard tests/*.c)
+TEST_SRCS = tests/test_framework.c \
+            tests/test_config.c \
+            tests/test_cmdline.c \
+            tests/test_jwt.c \
+            tests/test_protocol.c
 TEST_OBJS = $(TEST_SRCS:.c=.o)
+TEST_RUNNER_SRC = tests/run_tests.c
+TEST_RUNNER_OBJ = $(TEST_RUNNER_SRC:.c=.o)
+TEST_RUNNER = test_runner
 
 # Target executable
 TARGET = seed
@@ -56,17 +63,28 @@ $(TARGET): $(OBJS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Build tests
-test: $(TARGET) $(TEST_OBJS)
-	@for test in $(TEST_OBJS); do \
-		echo "Running $$test..."; \
-		$(CC) $$test $(filter-out src/main.o, $(OBJS)) -o $${test%.o} $(LDFLAGS) $(LIBS); \
-		./$${test%.o}; \
+# Build and run individual tests
+test-individual: $(TARGET)
+	@echo "Building individual tests..."
+	@for test_src in $(TEST_SRCS); do \
+		test_name=$${test_src%.c}; \
+		echo "Building $$test_name..."; \
+		$(CC) $(CFLAGS) $$test_src tests/test_framework.c $(filter-out src/main.o, $(OBJS)) -o $$test_name $(LDFLAGS) $(LIBS); \
+		echo "Running $$test_name..."; \
+		./$$test_name; \
 	done
+
+# Build and run comprehensive test suite
+test: $(TARGET) $(TEST_OBJS) $(TEST_RUNNER_OBJ)
+	@echo "Building test runner..."
+	$(CC) $(TEST_RUNNER_OBJ) $(TEST_OBJS) $(filter-out src/main.o, $(OBJS)) -o $(TEST_RUNNER) $(LDFLAGS) $(LIBS)
+	@echo "Running comprehensive test suite..."
+	./$(TEST_RUNNER)
 
 # Clean build files
 clean:
-	rm -f $(OBJS) $(TEST_OBJS) $(TARGET) tests/*
+	rm -f $(OBJS) $(TEST_OBJS) $(TEST_RUNNER_OBJ) $(TARGET) $(TEST_RUNNER)
+	rm -f tests/test_config tests/test_cmdline tests/test_jwt tests/test_protocol
 	find . -name "*.o" -delete
 
 # Install target
