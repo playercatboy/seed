@@ -66,6 +66,8 @@
 #define SEED_ERROR_AUTH_FAILED -7
 #define SEED_ERROR_CONFIG -8
 #define SEED_ERROR_PROTOCOL -9
+#define SEED_ERROR_NOT_IMPLEMENTED -10
+#define SEED_ERROR_CONNECTION_CLOSED -11
 
 /* Utility macros */
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))

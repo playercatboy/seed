@@ -6,6 +6,7 @@
  */
 
 #include "encrypt.h"
+#include "tls_encrypt.h"
 #include "log.h"
 #include <stdlib.h>
 #include <string.h>
@@ -28,7 +29,13 @@ int encrypt_init(void)
         return ret;
     }
     
-    /* TODO: Initialize TLS encryption when implemented */
+    /* Initialize TLS encryption module */
+    ret = tls_encrypt_init();
+    if (ret != 0) {
+        log_warning("Failed to initialize TLS encryption module (may not be available)");
+        /* Continue anyway - TLS is optional */
+    }
+    
     /* TODO: Initialize SSH encryption when implemented */
     
     encrypt_initialized = true;
@@ -47,7 +54,8 @@ void encrypt_cleanup(void)
     /* Cleanup table encryption */
     table_encrypt_cleanup();
     
-    /* TODO: Cleanup TLS encryption when implemented */
+    /* Cleanup TLS encryption */
+    tls_encrypt_cleanup();
     /* TODO: Cleanup SSH encryption when implemented */
     
     encrypt_initialized = false;
@@ -120,10 +128,30 @@ int encrypt_create_instance(const struct proxy_config *proxy_config,
                 free(enc);
                 return -1;
             }
-            /* TODO: Create TLS context when implemented */
-            log_warning("TLS encryption not yet implemented");
-            free(enc);
-            return -1;
+            /* Create TLS configuration */
+            struct tls_config tls_cfg = {0};
+            tls_cfg.server_mode = false;  /* Client mode by default */
+            tls_cfg.verify_peer = true;   /* Verify server certificate */
+            
+            /* Use config values if available */
+            if (strlen(proxy_config->tls_cert_file) > 0) {
+                strncpy(tls_cfg.cert_file, proxy_config->tls_cert_file, sizeof(tls_cfg.cert_file) - 1);
+            }
+            if (strlen(proxy_config->tls_key_file) > 0) {
+                strncpy(tls_cfg.key_file, proxy_config->tls_key_file, sizeof(tls_cfg.key_file) - 1);
+            }
+            if (strlen(proxy_config->tls_ca_file) > 0) {
+                strncpy(tls_cfg.ca_file, proxy_config->tls_ca_file, sizeof(tls_cfg.ca_file) - 1);
+            }
+            tls_cfg.verify_peer = proxy_config->tls_verify_peer;
+            
+            ret = tls_context_create(&tls_cfg, &enc->ctx.tls);
+            if (ret != 0) {
+                log_error("Failed to create TLS encryption context");
+                free(enc);
+                return ret;
+            }
+            break;
             
         case ENCRYPT_SSH:
             if (proxy_config->type != PROXY_TYPE_TCP) {
@@ -173,7 +201,10 @@ void encrypt_destroy_instance(struct encryption_instance *instance)
             break;
             
         case ENCRYPT_TLS:
-            /* TODO: Cleanup TLS context when implemented */
+            if (instance->ctx.tls) {
+                tls_context_destroy(instance->ctx.tls);
+                instance->ctx.tls = NULL;
+            }
             break;
             
         case ENCRYPT_SSH:
@@ -241,17 +272,33 @@ int encrypt_process_handshake(struct encryption_instance *instance,
         return -1;
     }
     
-    /* Table encryption doesn't use handshakes */
-    if (instance->type == ENCRYPT_TABLE || instance->type == ENCRYPT_NONE) {
-        *output = NULL;
-        *output_len = 0;
-        return 1; /* Handshake "complete" */
-    }
+    *output = NULL;
+    *output_len = 0;
     
-    /* TODO: Process TLS/SSH handshakes when implemented */
-    log_error("Handshake processing not implemented for encryption type: %s",
-              encrypt_type_string(instance->type));
-    return -1;
+    switch (instance->type) {
+        case ENCRYPT_NONE:
+        case ENCRYPT_TABLE:
+            /* No handshake needed */
+            return 1;
+            
+        case ENCRYPT_TLS:
+            if (!instance->ctx.tls) {
+                log_error("TLS context not initialized");
+                return -1;
+            }
+            return tls_handshake(instance->ctx.tls, 
+                               input, input_len, output, output_len);
+            
+        case ENCRYPT_SSH:
+            /* TODO: Process SSH handshakes when implemented */
+            log_error("SSH handshake processing not yet implemented");
+            return -1;
+            
+        default:
+            log_error("Unknown encryption type for handshake: %s",
+                      encrypt_type_string(instance->type));
+            return -1;
+    }
 }
 
 int encrypt_data(struct encryption_instance *instance,
@@ -307,9 +354,12 @@ int encrypt_data(struct encryption_instance *instance,
             break;
             
         case ENCRYPT_TLS:
-            /* TODO: Implement TLS encryption */
-            log_error("TLS encryption not yet implemented");
-            return -1;
+            if (!instance->ctx.tls) {
+                log_error("TLS context not initialized");
+                return -1;
+            }
+            return tls_encrypt(instance->ctx.tls,
+                             plaintext, plain_len, ciphertext, cipher_len);
             
         case ENCRYPT_SSH:
             /* TODO: Implement SSH encryption */
@@ -377,9 +427,12 @@ int decrypt_data(struct encryption_instance *instance,
             break;
             
         case ENCRYPT_TLS:
-            /* TODO: Implement TLS decryption */
-            log_error("TLS decryption not yet implemented");
-            return -1;
+            if (!instance->ctx.tls) {
+                log_error("TLS context not initialized");
+                return -1;
+            }
+            return tls_decrypt(instance->ctx.tls,
+                             ciphertext, cipher_len, plaintext, plain_len);
             
         case ENCRYPT_SSH:
             /* TODO: Implement SSH decryption */
@@ -396,7 +449,16 @@ int decrypt_data(struct encryption_instance *instance,
 
 bool encrypt_is_ready(const struct encryption_instance *instance)
 {
-    return instance && instance->initialized && instance->ready;
+    if (!instance || !instance->initialized) {
+        return false;
+    }
+    
+    /* For TLS, check if handshake is complete */
+    if (instance->type == ENCRYPT_TLS && instance->ctx.tls) {
+        return tls_is_ready(instance->ctx.tls);
+    }
+    
+    return instance->ready;
 }
 
 int encrypt_get_info(const struct encryption_instance *instance,
@@ -418,7 +480,20 @@ int encrypt_get_info(const struct encryption_instance *instance,
             break;
             
         case ENCRYPT_TLS:
-            snprintf(info, info_size, "TLS encryption (not implemented)");
+            if (instance->ctx.tls) {
+                char cipher[128] = {0};
+                char version[64] = {0};
+                if (tls_get_info(instance->ctx.tls, 
+                               cipher, sizeof(cipher), version, sizeof(version)) == 0) {
+                    snprintf(info, info_size, "TLS encryption (%s, %s, ready: %s)",
+                           version, cipher, encrypt_is_ready(instance) ? "yes" : "no");
+                } else {
+                    snprintf(info, info_size, "TLS encryption (ready: %s)", 
+                           encrypt_is_ready(instance) ? "yes" : "no");
+                }
+            } else {
+                snprintf(info, info_size, "TLS encryption (context not initialized)");
+            }
             break;
             
         case ENCRYPT_SSH:

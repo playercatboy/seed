@@ -44,6 +44,12 @@ struct proxy_config {
     int remote_port;            /** Remote port */
     bool encrypt;               /** Use encryption */
     enum encrypt_impl encrypt_impl; /** Encryption implementation */
+    
+    /* TLS encryption settings */
+    char tls_cert_file[MAX_PATH_LENGTH];  /** TLS certificate file */
+    char tls_key_file[MAX_PATH_LENGTH];   /** TLS private key file */
+    char tls_ca_file[MAX_PATH_LENGTH];    /** TLS CA certificate file */
+    bool tls_verify_peer;                 /** Verify peer certificate */
 };
 
 /** Server configuration */

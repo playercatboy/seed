@@ -40,12 +40,12 @@ typedef void BIO;
 #endif
 
 #ifdef ENABLE_UV_INTEGRATION
-typedef struct uv_buf_t uv_buf_t;
+typedef struct uv_buf_t tls_uv_buf_t;
 #else
 typedef struct {
     char* base;
     size_t len;
-} uv_buf_t;
+} tls_uv_buf_t;
 #endif
 
 /** TLS connection context */
@@ -55,7 +55,7 @@ struct tls_context {
     BIO *bio_in;                       /**< Input BIO */
     BIO *bio_out;                      /**< Output BIO */
     bool handshake_done;               /**< Handshake completion flag */
-    uv_buf_t pending_data;             /**< Pending encrypted data */
+    tls_uv_buf_t pending_data;         /**< Pending encrypted data */
     size_t pending_size;               /**< Size of pending data */
 };
 

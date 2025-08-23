@@ -143,8 +143,10 @@ static int config_ini_handler(void *user, const char *section, const char *name,
             if (config->mode == MODE_CLIENT) {
                 current_proxy_index++;
                 if (current_proxy_index < MAX_PROXY_INSTANCES) {
-                    strncpy(config->proxies[current_proxy_index].name, section, 
-                            sizeof(config->proxies[current_proxy_index].name) - 1);
+                    struct proxy_config *proxy = &config->proxies[current_proxy_index];
+                    strncpy(proxy->name, section, sizeof(proxy->name) - 1);
+                    /* Set TLS defaults */
+                    proxy->tls_verify_peer = true;  /* Default to secure */
                     config->proxy_count = current_proxy_index + 1;
                 }
             }
@@ -195,6 +197,14 @@ static int config_ini_handler(void *user, const char *section, const char *name,
             proxy->encrypt = parse_bool(value);
         } else if (strcmp(name, "encrypt_impl") == 0) {
             proxy->encrypt_impl = parse_encrypt_impl(value, proxy->type);
+        } else if (strcmp(name, "tls_cert_file") == 0) {
+            strncpy(proxy->tls_cert_file, value, sizeof(proxy->tls_cert_file) - 1);
+        } else if (strcmp(name, "tls_key_file") == 0) {
+            strncpy(proxy->tls_key_file, value, sizeof(proxy->tls_key_file) - 1);
+        } else if (strcmp(name, "tls_ca_file") == 0) {
+            strncpy(proxy->tls_ca_file, value, sizeof(proxy->tls_ca_file) - 1);
+        } else if (strcmp(name, "tls_verify_peer") == 0) {
+            proxy->tls_verify_peer = parse_bool(value);
         }
     }
     
@@ -354,6 +364,19 @@ void config_print(const struct seed_config *config)
             if (proxy->encrypt) {
                 const char *impl_names[] = {"none", "tls", "ssh", "table"};
                 printf("  Encryption Type: %s\n", impl_names[proxy->encrypt_impl]);
+                
+                if (proxy->encrypt_impl == ENCRYPT_TLS) {
+                    if (strlen(proxy->tls_cert_file) > 0) {
+                        printf("  TLS Certificate: %s\n", proxy->tls_cert_file);
+                    }
+                    if (strlen(proxy->tls_key_file) > 0) {
+                        printf("  TLS Private Key: %s\n", proxy->tls_key_file);
+                    }
+                    if (strlen(proxy->tls_ca_file) > 0) {
+                        printf("  TLS CA Certificate: %s\n", proxy->tls_ca_file);
+                    }
+                    printf("  TLS Verify Peer: %s\n", proxy->tls_verify_peer ? "yes" : "no");
+                }
             }
         }
     }
