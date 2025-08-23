@@ -87,33 +87,50 @@ seed -e -p your_auth_password -f seed.conf
 # Manually add to encrypted auth file or convert existing plaintext file
 ```
 
-## TLS Encryption (TCP) - Planned
+## TLS Encryption (TCP)
 
-TLS encryption will provide cryptographically secure communication for TCP proxy connections.
+TLS encryption provides cryptographically secure communication for TCP proxy connections using OpenSSL.
 
-### Planned Features
+### Features
 
-- SSL/TLS 1.2 and 1.3 support via OpenSSL
-- Client and server certificate authentication
-- Perfect Forward Secrecy (PFS)
-- Configurable cipher suites
-- Certificate chain validation
+- **SSL/TLS Support**: Full SSL/TLS 1.2 and 1.3 support via OpenSSL
+- **Client/Server Modes**: Both TLS client and server implementations
+- **Certificate Authentication**: Client and server certificate validation
+- **Security Features**: High-grade cipher suites, configurable security levels
+- **Non-blocking Operation**: Memory BIO-based implementation for async I/O
+- **Certificate Chain Validation**: Full certificate chain verification
 
-### Planned Configuration
+### Configuration
 
 ```ini
-[tcp_proxy]
+[secure_web]
 type = tcp
 local_addr = 127.0.0.1
 local_port = 443
 remote_port = 443
 encrypt = true
 encrypt_impl = tls
-tls_cert_file = /path/to/cert.pem
-tls_key_file = /path/to/key.pem
-tls_ca_file = /path/to/ca.pem
+tls_cert_file = /path/to/client.crt
+tls_key_file = /path/to/client.key
+tls_ca_file = /path/to/ca.crt
 tls_verify_peer = true
 ```
+
+### Security Features
+
+- **High Security**: Security level 2 enforced (112-bit security)
+- **Cipher Suite Control**: Excludes weak algorithms (aNULL, kRSA, PSK, SRP, MD5, RC4)
+- **Certificate Validation**: Optional peer certificate verification
+- **Perfect Forward Secrecy**: Supported cipher suites provide PFS
+- **Error Handling**: Comprehensive SSL error reporting and handling
+
+### TLS Handshake Process
+
+1. **Context Creation**: SSL context initialized with certificates and configuration
+2. **Connection Setup**: SSL connection created with memory BIOs for non-blocking I/O
+3. **Handshake Processing**: Incremental handshake with proper state management
+4. **Data Transfer**: Encrypted data exchange once handshake completes
+5. **Connection Teardown**: Proper SSL shutdown and resource cleanup
 
 ## SSH Tunneling (TCP) - Planned
 
@@ -149,6 +166,10 @@ ssh_known_hosts = /path/to/known_hosts
 ### ✅ Completed
 - Table encryption core implementation
 - UDP proxy integration with table encryption
+- TLS encryption implementation using OpenSSL
+- TLS context management with client/server modes
+- Certificate loading and validation
+- Non-blocking TLS handshake processing
 - Encrypted authentication file storage
 - Magic header validation for password verification
 - Command-line options for encrypted auth (-e, -p)
@@ -158,14 +179,15 @@ ssh_known_hosts = /path/to/known_hosts
 - Comprehensive unit tests for all encryption features
 
 ### 🚧 Recently Completed
+- TLS encryption integration with TCP proxies
 - Configuration examples and documentation
 - Integration with main application flow
 
 ### 📋 Planned
-- TLS encryption implementation using OpenSSL
 - SSH tunneling implementation using libssh
 - Performance optimization for high-throughput scenarios
 - Encryption key management and rotation
+- Certificate authority integration
 - Monitoring and logging for encrypted connections
 
 ## Usage Examples
@@ -207,6 +229,72 @@ encrypt_password = minecraft_encryption_123
 3. **Start the server with encrypted auth**:
 ```bash
 ./seed -e -p server_auth_password -f server.conf
+```
+
+### TLS TCP Encryption Setup
+
+1. **Generate TLS certificates** (for testing):
+```bash
+# Create CA
+openssl genrsa -out ca.key 4096
+openssl req -new -x509 -days 365 -key ca.key -out ca.crt
+
+# Create server certificate
+openssl genrsa -out server.key 2048
+openssl req -new -key server.key -out server.csr
+openssl x509 -req -days 365 -in server.csr -CA ca.crt -CAkey ca.key -out server.crt
+
+# Create client certificate
+openssl genrsa -out client.key 2048
+openssl req -new -key client.key -out client.csr  
+openssl x509 -req -days 365 -in client.csr -CA ca.crt -CAkey ca.key -out client.crt
+```
+
+2. **Server Configuration** (server.conf):
+```ini
+[seed]
+mode = server
+log_level = info
+
+[server]
+bind_addr = 0.0.0.0
+bind_port = 7000
+auth_file = server.auth
+
+[tls_proxy]
+type = tcp
+local_addr = 127.0.0.1
+local_port = 443
+remote_port = 8443
+encrypt = true
+encrypt_impl = tls
+tls_cert_file = server.crt
+tls_key_file = server.key
+tls_ca_file = ca.crt
+tls_verify_peer = true
+```
+
+3. **Client Configuration** (client.conf):
+```ini
+[seed]
+mode = client
+log_level = info
+server_addr = your-server.com
+server_port = 7000
+username = client1
+password = clientpassword
+
+[web_proxy]
+type = tcp
+local_addr = 127.0.0.1
+local_port = 8080
+remote_port = 443
+encrypt = true
+encrypt_impl = tls
+tls_cert_file = client.crt
+tls_key_file = client.key
+tls_ca_file = ca.crt
+tls_verify_peer = true
 ```
 
 4. **Start the client**:

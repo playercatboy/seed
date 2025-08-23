@@ -108,7 +108,7 @@ auth_file = seed.auth     # Authentication database
 mode = client
 log_level = info
 
-# TCP Proxy Example
+# TCP Proxy Example with TLS Encryption
 [web-server]
 type = tcp
 local_addr = 127.0.0.1
@@ -116,6 +116,10 @@ local_port = 80
 remote_port = 8080
 encrypt = true
 encrypt_impl = tls
+tls_cert_file = /path/to/client.crt
+tls_key_file = /path/to/client.key
+tls_ca_file = /path/to/ca.crt
+tls_verify_peer = true
 
 # UDP Proxy Example  
 [game-server]
@@ -206,6 +210,7 @@ Test coverage includes:
 - Protocol message handling
 - Logging system functionality
 - Table encryption and key management
+- TLS encryption with certificate handling
 - UDP proxy encryption integration
 - Encryption manager functionality
 - Encrypted authentication file storage and retrieval
@@ -230,6 +235,7 @@ Test coverage includes:
 - **Client Mode** (`src/client.c`) - Server connection and tunnel management
 - **Encryption Manager** (`src/encrypt.c`) - Pluggable encryption architecture
 - **Table Encryption** (`src/table_encrypt.c`) - Fast UDP packet encryption
+- **TLS Encryption** (`src/tls_encrypt.c`) - OpenSSL-based TCP encryption
 
 ### Project Structure
 ```
@@ -267,12 +273,12 @@ seed/
 - [x] UDP proxy with session management and packet forwarding
 - [x] **Encryption subsystem with pluggable architecture**
 - [x] **Table encryption for UDP with O(1) performance**
+- [x] **TLS encryption for TCP using OpenSSL with full certificate support**
 - [x] **Encrypted authentication file storage with password protection**
 - [x] **Encryption manager and configuration support**
 - [x] Comprehensive unit and integration tests
 
 ### 🚧 Planned (Future Releases)
-- [ ] TLS encryption for TCP using OpenSSL
 - [ ] SSH tunneling for TCP using libssh
 
 ### 📋 Planned
