@@ -42,6 +42,9 @@ seed -s yourpassword
 
 # Add output to seed.auth file
 echo "username: <generated-jwt-token>" >> seed.auth
+
+# Or use encrypted auth file with password protection
+seed -e -p mypassword  # Uses encrypted seed.auth.enc file
 ```
 
 ### Server Mode
@@ -134,6 +137,18 @@ admin: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 user1: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
+### Encrypted Authentication Files
+
+For enhanced security, Seed supports encrypted authentication files:
+
+```bash
+# Use encrypted auth file
+seed -e -p your_password -f seed.conf
+
+# The encrypted file (seed.auth.enc) is protected with table encryption
+# Wrong passwords are detected via magic header validation
+```
+
 Generate tokens using:
 ```bash
 seed -s <password>
@@ -186,13 +201,14 @@ make test-standalone   # Integration tests
 
 Test coverage includes:
 - Configuration parsing and validation
-- Command line argument processing
+- Command line argument processing with encrypted auth support
 - JWT token generation and verification  
 - Protocol message handling
 - Logging system functionality
 - Table encryption and key management
 - UDP proxy encryption integration
 - Encryption manager functionality
+- Encrypted authentication file storage and retrieval
 
 ### Code Style
 
@@ -207,7 +223,7 @@ Test coverage includes:
 
 - **Logging Module** (`src/log.c`) - Colored logging with multiple levels
 - **Configuration** (`src/config.c`) - INI file parsing and validation
-- **Authentication** (`src/auth.c`, `src/jwt.c`) - JWT-based security
+- **Authentication** (`src/auth.c`, `src/jwt.c`) - JWT-based security with encrypted file support
 - **Network Core** (`src/network.c`) - libuv-based async networking
 - **Protocol Handler** (`src/protocol.c`) - Binary message protocol
 - **Server Mode** (`src/server.c`) - Client management and proxy registry
@@ -251,6 +267,7 @@ seed/
 - [x] UDP proxy with session management and packet forwarding
 - [x] **Encryption subsystem with pluggable architecture**
 - [x] **Table encryption for UDP with O(1) performance**
+- [x] **Encrypted authentication file storage with password protection**
 - [x] **Encryption manager and configuration support**
 - [x] Comprehensive unit and integration tests
 
@@ -275,7 +292,7 @@ seed/
 
 ## License
 
-This project is released under [LICENSE]. See LICENSE file for details.
+This project is released under the MIT License. See LICENSE file for details.
 
 ## Links
 

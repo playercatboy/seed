@@ -4,9 +4,10 @@ This document describes the encryption features available in the Seed reverse pr
 
 ## Overview
 
-Seed supports multiple encryption methods to secure data transmission between clients, servers, and target services:
+Seed supports multiple encryption methods to secure data transmission and configuration storage:
 
 - **Table Encryption**: Fast, lightweight encryption for UDP traffic using byte substitution tables
+- **Encrypted Auth Files**: Secure storage for authentication databases using table encryption
 - **TLS Encryption**: Industry-standard SSL/TLS encryption for TCP traffic (planned)  
 - **SSH Tunneling**: Secure shell tunneling for TCP traffic (planned)
 
@@ -46,6 +47,45 @@ encrypt_password = your_secure_password_here
 - Overhead: ~1 CPU cycle per byte (O(1) complexity)
 - Memory: 512 bytes per proxy instance (encrypt + decrypt tables)
 - Latency impact: Minimal (<1ms for typical packet sizes)
+
+## Encrypted Authentication Files
+
+Seed can store authentication databases in encrypted form to protect user credentials and JWT tokens from unauthorized access.
+
+### How It Works
+
+1. Authentication database is encrypted using table encryption with password-based key derivation
+2. A magic header "SEED_AUTH_ENC_V1\n" is added for password validation
+3. Wrong passwords are detected immediately without exposing authentication data
+4. The same table encryption used for UDP packets provides file encryption
+
+### Configuration
+
+```bash
+# Use encrypted auth file with command-line options
+seed -e -p your_auth_password -f seed.conf
+
+# The encrypted file (seed.auth.enc) replaces seed.auth
+# Original plaintext auth files remain supported
+```
+
+### Security Features
+
+- **Password Validation**: Magic header detects wrong passwords instantly
+- **Data Protection**: Authentication tokens encrypted at rest
+- **Backward Compatibility**: Plaintext auth files still supported
+- **Command Integration**: Seamless integration with existing CLI options
+
+### Usage Examples
+
+```bash
+# Start server with encrypted auth file
+./seed -e -p myauthpassword -f server.conf
+
+# Generate tokens and use encrypted storage
+./seed -s userpassword  # Generate JWT token
+# Manually add to encrypted auth file or convert existing plaintext file
+```
 
 ## TLS Encryption (TCP) - Planned
 
@@ -109,12 +149,15 @@ ssh_known_hosts = /path/to/known_hosts
 ### ✅ Completed
 - Table encryption core implementation
 - UDP proxy integration with table encryption
+- Encrypted authentication file storage
+- Magic header validation for password verification
+- Command-line options for encrypted auth (-e, -p)
 - Encryption context management
 - Configuration parsing for encryption options
 - Base64 table export/import
-- Comprehensive unit tests
+- Comprehensive unit tests for all encryption features
 
-### 🚧 In Progress
+### 🚧 Recently Completed
 - Configuration examples and documentation
 - Integration with main application flow
 
@@ -161,9 +204,9 @@ encrypt_impl = table
 encrypt_password = minecraft_encryption_123
 ```
 
-3. **Start the server**:
+3. **Start the server with encrypted auth**:
 ```bash
-./seed -f server.conf
+./seed -e -p server_auth_password -f server.conf
 ```
 
 4. **Start the client**:
