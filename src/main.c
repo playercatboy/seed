@@ -12,6 +12,8 @@
 #include "jwt.h"
 #include "auth.h"
 #include "server.h"
+#include "client.h"
+#include "network.h"
 
 /**
  * @brief Handle password hashing mode
@@ -154,16 +156,75 @@ int main(int argc, char *argv[])
     }
     /* Client mode */
     else if (config.mode == MODE_CLIENT) {
+        struct network_context network_ctx;
+        struct client_session client;
+        int client_result;
+        
         log_info("Starting client with %d proxy instances", config.proxy_count);
         
-        /* TODO: Implement client mode */
-        log_error("Client mode not yet implemented");
+        /* Initialize network context */
+        client_result = network_init(&network_ctx);
+        if (client_result != SEED_OK) {
+            log_error("Failed to initialize network context");
+            config_free(&config);
+            cmdline_free(&options);
+            log_cleanup();
+            return EXIT_FAILURE;
+        }
         
+        /* Initialize client */
+        client_result = client_init(&client, &network_ctx, &config);
+        if (client_result != SEED_OK) {
+            log_error("Failed to initialize client");
+            network_cleanup(&network_ctx);
+            config_free(&config);
+            cmdline_free(&options);
+            log_cleanup();
+            return EXIT_FAILURE;
+        }
+        
+        /* Add proxy instances from configuration */
+        for (int i = 0; i < config.proxy_count; i++) {
+            const struct proxy_config *proxy = &config.proxies[i];
+            client_result = client_add_proxy(&client, proxy->name, proxy->type,
+                                           proxy->local_addr, proxy->local_port,
+                                           proxy->remote_port, proxy->encrypt,
+                                           proxy->encrypt_impl);
+            if (client_result != SEED_OK) {
+                log_error("Failed to add proxy instance '%s'", proxy->name);
+            }
+        }
+        
+        /* Connect to server - for now use hardcoded values */
+        /* TODO: Add server address/port to client configuration */
+        const char *server_addr = "127.0.0.1";
+        uint16_t server_port = 7000;
+        
+        client_result = client_connect(&client, server_addr, server_port);
+        if (client_result != SEED_OK) {
+            log_error("Failed to connect to server");
+            client_cleanup(&client);
+            network_cleanup(&network_ctx);
+            config_free(&config);
+            cmdline_free(&options);
+            log_cleanup();
+            return EXIT_FAILURE;
+        }
+        
+        /* Run client event loop */
+        log_info("Client started, running event loop...");
+        client_result = uv_run(network_ctx.loop, UV_RUN_DEFAULT);
+        
+        log_info("Client event loop finished");
+        
+        /* Cleanup */
+        client_cleanup(&client);
+        network_cleanup(&network_ctx);
         config_free(&config);
         cmdline_free(&options);
         log_cleanup();
         
-        return EXIT_FAILURE;
+        return client_result == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
     }
     
     /* Cleanup */
