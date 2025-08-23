@@ -6,7 +6,114 @@
  */
 
 #include "cmdline.h"
+
+#ifdef _WIN32
+/* Simple getopt implementation for Windows */
+char *optarg = NULL;
+int optind = 1;
+int opterr = 1;
+int optopt = 0;
+
+static int getopt_long(int argc, char *const argv[], const char *optstring,
+                      const struct option *longopts, int *longindex)
+{
+    static int sp = 1;
+    int c;
+    const char *cp;
+    
+    if (optind >= argc) {
+        return -1;
+    }
+    
+    if (sp == 1) {
+        if (argv[optind][0] != '-') {
+            return -1;
+        }
+        if (argv[optind][1] == '-' && argv[optind][2] == 0) {
+            optind++;
+            return -1;
+        }
+    }
+    
+    if (argv[optind][0] == '-' && argv[optind][1] == '-') {
+        /* Long option */
+        const char *arg = argv[optind] + 2;
+        const char *eq = strchr(arg, '=');
+        size_t len = eq ? (size_t)(eq - arg) : strlen(arg);
+        
+        for (int i = 0; longopts[i].name; i++) {
+            if (strncmp(arg, longopts[i].name, len) == 0 && 
+                strlen(longopts[i].name) == len) {
+                if (longindex) *longindex = i;
+                
+                if (longopts[i].has_arg) {
+                    if (eq) {
+                        optarg = (char *)(eq + 1);
+                    } else if (optind + 1 < argc) {
+                        optind++;
+                        optarg = argv[optind];
+                    } else {
+                        optind++;
+                        return '?';
+                    }
+                }
+                optind++;
+                return longopts[i].val;
+            }
+        }
+        optind++;
+        return '?';
+    }
+    
+    /* Short option */
+    c = argv[optind][sp];
+    cp = strchr(optstring, c);
+    
+    if (c == ':' || cp == NULL) {
+        optopt = c;
+        if (argv[optind][++sp] == '\0') {
+            optind++;
+            sp = 1;
+        }
+        return '?';
+    }
+    
+    if (cp[1] == ':') {
+        if (argv[optind][sp + 1] != '\0') {
+            optarg = &argv[optind][sp + 1];
+        } else if (++optind >= argc) {
+            sp = 1;
+            return '?';
+        } else {
+            optarg = argv[optind];
+        }
+        sp = 1;
+        optind++;
+    } else {
+        if (argv[optind][++sp] == '\0') {
+            sp = 1;
+            optind++;
+        }
+        optarg = NULL;
+    }
+    
+    return c;
+}
+
+struct option {
+    const char *name;
+    int has_arg;
+    int *flag;
+    int val;
+};
+
+#define no_argument 0
+#define required_argument 1
+#define optional_argument 2
+
+#else
 #include <getopt.h>
+#endif
 
 /** Long options for getopt */
 static struct option long_options[] = {

@@ -1,0 +1,12 @@
+# Seed Authentication Database Example
+# Format: username: jwt-token
+# 
+# To generate a JWT token for a password, use:
+#   seed -s yourpassword
+#
+# Then add the username and generated token below:
+
+# Example users (replace with your own):
+# admin: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+# user1: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+# user2: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...

@@ -1,0 +1,70 @@
+# Build outputs
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+seed
+
+# Visual Studio files
+.vs/
+*.user
+*.suo
+*.sln.docstates
+*.VC.db
+*.VC.opendb
+*.ipch
+*.aps
+*.ncb
+*.opensdf
+*.sdf
+*.cachefile
+*.psess
+*.vsp
+*.vspx
+*.sap
+x64/
+x86/
+Debug/
+Release/
+
+# Build directories
+build/
+bin/
+obj/
+
+# Dependencies
+components/libuv/
+components/openssl/
+components/mbedtls/
+components/libssh/
+
+# Config files (except examples)
+seed.conf
+seed.auth
+!seed.conf.example
+!seed.auth.example
+
+# Log files
+*.log
+
+# Backup files
+*.bak
+*~
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+
+# Test outputs
+tests/*.exe
+tests/*.out

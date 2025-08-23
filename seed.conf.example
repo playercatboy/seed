@@ -1,0 +1,67 @@
+; Seed Configuration File Example
+; Copy this file to seed.conf and modify as needed
+
+; ============================================
+; Global Configuration
+; ============================================
+[seed]
+; Working mode: 'server' or 'client'
+mode = server
+
+; Log level: 'error', 'warning', 'info', 'debug'
+log_level = info
+
+
+; ============================================
+; Server Configuration (server mode only)
+; ============================================
+[server]
+; IP address to bind to (0.0.0.0 for all interfaces)
+bind_addr = 0.0.0.0
+
+; Port to listen on
+bind_port = 7000
+
+; Path to authentication database file
+auth_file = seed.auth
+
+
+; ============================================
+; Client Configuration Examples (client mode only)
+; ============================================
+; Uncomment and modify the sections below for client mode
+
+; Example 1: HTTP proxy
+;[http-proxy]
+;type = tcp
+;local_addr = 127.0.0.1
+;local_port = 8080
+;remote_port = 8080
+;encrypt = true
+;encrypt_impl = tls
+
+; Example 2: SSH proxy
+;[ssh-proxy]
+;type = tcp
+;local_addr = 127.0.0.1
+;local_port = 22
+;remote_port = 2222
+;encrypt = true
+;encrypt_impl = ssh
+
+; Example 3: Game server UDP proxy
+;[game-server]
+;type = udp
+;local_addr = 127.0.0.1
+;local_port = 27015
+;remote_port = 27015
+;encrypt = true
+;encrypt_impl = table
+
+; Example 4: Database proxy without encryption
+;[database]
+;type = tcp
+;local_addr = 127.0.0.1
+;local_port = 3306
+;remote_port = 3306
+;encrypt = false
