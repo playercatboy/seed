@@ -236,10 +236,10 @@ seed/
 - [x] Server mode with client session management
 - [x] Client mode with server authentication and proxy management
 - [x] TCP proxy with full-duplex data forwarding
+- [x] UDP proxy with session management and packet forwarding
 - [x] Comprehensive unit and integration tests
 
 ### 🚧 In Progress
-- [ ] UDP proxy data forwarding
 - [ ] TLS encryption for TCP
 - [ ] SSH tunneling for TCP
 - [ ] Table encryption for UDP
