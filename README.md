@@ -7,8 +7,8 @@ Seed is a high-performance reverse proxy software inspired by [frp](https://gith
 - **Client-Server Architecture**: Clients behind NAT connect to public servers
 - **Protocol Support**: TCP and UDP reverse proxy tunneling
 - **Multiple Encryption Options**:
-  - TCP: TLS and SSH port forwarding
-  - UDP: Custom O(1) byte mapping table encryption
+  - **UDP**: Table-based encryption with O(1) performance (implemented)
+  - **TCP**: TLS and SSH port forwarding (planned)
 - **JWT Authentication**: Secure token-based authentication system
 - **High Performance**: Built with libuv for async I/O operations
 - **Cross-Platform**: Windows (MSVC) and Linux (GCC) support
@@ -190,6 +190,9 @@ Test coverage includes:
 - JWT token generation and verification  
 - Protocol message handling
 - Logging system functionality
+- Table encryption and key management
+- UDP proxy encryption integration
+- Encryption manager functionality
 
 ### Code Style
 
@@ -209,6 +212,8 @@ Test coverage includes:
 - **Protocol Handler** (`src/protocol.c`) - Binary message protocol
 - **Server Mode** (`src/server.c`) - Client management and proxy registry
 - **Client Mode** (`src/client.c`) - Server connection and tunnel management
+- **Encryption Manager** (`src/encrypt.c`) - Pluggable encryption architecture
+- **Table Encryption** (`src/table_encrypt.c`) - Fast UDP packet encryption
 
 ### Project Structure
 ```
@@ -216,12 +221,19 @@ seed/
 ├── src/              # Source files (.c)
 ├── include/          # Public headers (.h)  
 ├── tests/            # Unit and integration tests
-├── doc/              # Documentation
+├── doc/              # Documentation (see doc/encryption.md)
+├── examples/         # Configuration examples
 ├── components/       # Third-party libraries
 ├── Makefile          # Linux/Unix build
 ├── seed.sln          # Windows Visual Studio solution
 └── README.md         # This file
 ```
+
+### Documentation
+
+- **[Encryption Guide](doc/encryption.md)** - Complete encryption setup and usage
+- **[Developer Guide](doc/developer.md)** - Architecture and development info
+- **[Configuration Examples](examples/)** - Sample configurations for various scenarios
 
 ## Implementation Status
 
@@ -237,12 +249,14 @@ seed/
 - [x] Client mode with server authentication and proxy management
 - [x] TCP proxy with full-duplex data forwarding
 - [x] UDP proxy with session management and packet forwarding
+- [x] **Encryption subsystem with pluggable architecture**
+- [x] **Table encryption for UDP with O(1) performance**
+- [x] **Encryption manager and configuration support**
 - [x] Comprehensive unit and integration tests
 
-### 🚧 In Progress
-- [ ] TLS encryption for TCP
-- [ ] SSH tunneling for TCP
-- [ ] Table encryption for UDP
+### 🚧 Planned (Future Releases)
+- [ ] TLS encryption for TCP using OpenSSL
+- [ ] SSH tunneling for TCP using libssh
 
 ### 📋 Planned
 - [ ] Performance optimization

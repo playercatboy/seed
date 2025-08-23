@@ -27,10 +27,11 @@ components/libuv/
 └── README.md
 ```
 
-### OpenSSL or MbedTLS
+### OpenSSL or MbedTLS  
 **Version**: OpenSSL 3.4.0+ or MbedTLS 3.0+  
-**Purpose**: Cryptographic functions for TLS encryption and JWT tokens  
+**Purpose**: Cryptographic functions for JWT tokens and future TLS encryption  
 **License**: Apache License 2.0 (OpenSSL) / Apache License 2.0 (MbedTLS)
+**Note**: Table encryption for UDP uses built-in algorithms and doesn't require OpenSSL
 
 #### OpenSSL (Recommended)
 - **Website**: https://www.openssl.org/
