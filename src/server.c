@@ -326,6 +326,59 @@ static int handle_data_backward(struct server_context *ctx, const struct msg_dat
 }
 
 /**
+ * @brief Find proxy mapping by ID
+ */
+static struct proxy_mapping *find_proxy_by_id(struct server_context *ctx, const char *proxy_id)
+{
+    if (!ctx || !proxy_id) {
+        return NULL;
+    }
+    
+    for (int i = 0; i < MAX_PROXY_MAPPINGS; i++) {
+        if (ctx->mappings[i].active && 
+            strncmp(ctx->mappings[i].proxy_id, proxy_id, strlen(proxy_id)) == 0) {
+            return &ctx->mappings[i];
+        }
+    }
+    
+    return NULL;
+}
+
+/**
+ * @brief Handle UDP_DATA message - forward to UDP proxy or target
+ */
+static void handle_udp_data_message(struct server_context *ctx, struct server_client_session *client, const struct msg_udp_data *udp_msg)
+{
+    if (!ctx || !client || !udp_msg) {
+        return;
+    }
+    
+    /* Find the registered proxy by proxy_id */
+    struct proxy_mapping *proxy_mapping = find_proxy_by_id(ctx, udp_msg->proxy_id);
+    if (!proxy_mapping) {
+        log_error("UDP proxy not found for proxy_id='%s'", udp_msg->proxy_id);
+        return;
+    }
+    
+    if (proxy_mapping->type != PROXY_TYPE_UDP) {
+        log_error("Proxy '%s' is not a UDP proxy", udp_msg->proxy_id);
+        return;
+    }
+    
+    /* TODO: Extract UDP data from protocol message and forward to target */
+    /* For now, just log that we received UDP data */
+    log_info("Received UDP data for proxy '%s' from %u.%u.%u.%u:%u to port %u (%u bytes)",
+             udp_msg->proxy_id,
+             (udp_msg->src_addr >> 24) & 0xFF,
+             (udp_msg->src_addr >> 16) & 0xFF,
+             (udp_msg->src_addr >> 8) & 0xFF,
+             udp_msg->src_addr & 0xFF,
+             udp_msg->src_port,
+             udp_msg->dst_port,
+             udp_msg->data_length);
+}
+
+/**
  * @brief Close proxy connection callback
  */
 static void on_proxy_close(uv_handle_t *handle)
@@ -715,6 +768,18 @@ void server_handle_message(struct server_context *ctx, struct connection *conn,
     case MSG_TYPE_DATA_FORWARD:
         /* TODO: Handle data forwarding */
         log_debug("Data forward message (not yet implemented)");
+        break;
+        
+    case MSG_TYPE_UDP_DATA:
+        {
+            const struct msg_udp_data *udp_msg = &msg->payload.udp_data;
+            log_debug("Received UDP_DATA: proxy_id='%s' src=%u:%u dst_port=%u data_length=%u",
+                     udp_msg->proxy_id, udp_msg->src_addr, udp_msg->src_port,
+                     udp_msg->dst_port, udp_msg->data_length);
+            
+            /* Handle UDP data - forward to registered UDP proxy */
+            handle_udp_data_message(ctx, client, udp_msg);
+        }
         break;
         
     case MSG_TYPE_DATA_BACKWARD:

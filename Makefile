@@ -1,7 +1,7 @@
 # Seed Makefile for Linux/Unix systems
 
 CC = gcc
-CFLAGS = -Wall -Wextra -O2 -I./include -I./components/libuv/include -I./components/openssl/include -I./components/libssh/include
+CFLAGS = -Wall -Wextra -O2 -I./include -I./components/libuv/include -I./components/openssl/include -I./components/libssh/include -DENABLE_TLS_ENCRYPTION -DENABLE_SSH_ENCRYPTION -DENABLE_TABLE_ENCRYPTION
 LDFLAGS = -L./components/libuv/lib -L./components/openssl/lib -L./components/libssh/lib
 LIBS = -luv -lssl -lcrypto -lpthread -ldl
 

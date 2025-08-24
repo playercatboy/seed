@@ -249,11 +249,11 @@ Test coverage includes:
 - **Configuration** (`src/config.c`) - INI file parsing and validation
 - **Authentication** (`src/auth.c`, `src/jwt.c`) - JWT-based security with encrypted file support
 - **Network Core** (`src/network.c`) - libuv-based async networking
-- **Protocol Handler** (`src/protocol.c`) - Binary message protocol with DATA_FORWARD/DATA_BACKWARD
+- **Protocol Handler** (`src/protocol.c`) - Binary message protocol with DATA_FORWARD/DATA_BACKWARD and UDP_DATA messages
 - **Server Mode** (`src/server.c`) - Client management and proxy registry
 - **Client Mode** (`src/client.c`) - Server connection, tunnel management, and **complete local service forwarding**
 - **TCP Proxy** (`src/tcp_proxy.c`) - Full bidirectional TCP data forwarding with connection management
-- **UDP Proxy** (`src/udp_proxy.c`) - Packet forwarding with session tracking
+- **UDP Proxy** (`src/udp_proxy.c`) - **Complete protocol integration with bidirectional packet forwarding**
 - **Encryption Manager** (`src/encrypt.c`) - Pluggable encryption architecture
 - **Table Encryption** (`src/table_encrypt.c`) - Fast UDP packet encryption
 - **TLS Encryption** (`src/tls_encrypt.c`) - OpenSSL-based TCP encryption
@@ -296,13 +296,13 @@ seed/
 - [x] **Networking & Protocol**
   - Custom binary protocol with CRC32 checksums
   - libuv-based async networking core with cross-platform socket support
-  - Protocol message handling (Hello, Auth, Proxy Request/Response, Data, Error)
+  - Protocol message handling (Hello, Auth, Proxy Request/Response, Data Forward/Backward, UDP Data, Error)
   
 - [x] **Proxy Services**
   - Server mode with client session management and proxy registry
   - Client mode with server authentication and proxy management
-  - TCP proxy with full-duplex data forwarding and connection management
-  - UDP proxy with session management and packet forwarding
+  - **TCP proxy with full-duplex data forwarding, connection management, and integrated TLS/SSH encryption**
+  - **UDP proxy with complete protocol integration and bidirectional packet forwarding**
   
 - [x] **Encryption System**
   - **Table encryption for UDP** with O(1) byte-substitution performance

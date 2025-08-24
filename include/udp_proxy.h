@@ -111,6 +111,8 @@ struct udp_proxy {
     void (*on_session_created)(struct udp_proxy *proxy, struct udp_session *session);
     void (*on_session_closed)(struct udp_proxy *proxy, struct udp_session *session);
     void (*on_packet_forwarded)(struct udp_proxy *proxy, size_t bytes);
+    void (*on_udp_data)(struct udp_proxy *proxy, const uint8_t *data, size_t length, 
+                        const struct sockaddr_in *src_addr, uint16_t dst_port);
     void (*on_error)(struct udp_proxy *proxy, int error);
 };
 

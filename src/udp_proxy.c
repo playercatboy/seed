@@ -541,12 +541,12 @@ static void on_client_recv(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf,
         log_debug("Decrypted packet from client (%zu bytes)", packet_size);
     }
     
-    /* Forward packet to target */
-    int ret = forward_udp_packet(&session->target_socket, packet_data, packet_size,
-                                (const struct sockaddr*)&session->target_addr);
-    if (ret != SEED_OK) {
-        log_error("Failed to forward packet to target");
-    } else {
+    /* Forward packet via callback (for protocol integration) or direct to target */
+    if (proxy->on_udp_data) {
+        /* Use callback for protocol-based forwarding */
+        proxy->on_udp_data(proxy, packet_data, packet_size, 
+                          (const struct sockaddr_in*)addr, session->target_addr.sin_port);
+        
         session->packets_received++;
         session->bytes_received += nread;
         proxy->total_packets_forwarded++;
@@ -554,6 +554,22 @@ static void on_client_recv(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf,
         
         if (proxy->on_packet_forwarded) {
             proxy->on_packet_forwarded(proxy, nread);
+        }
+    } else {
+        /* Direct forwarding to target (local mode) */
+        int ret = forward_udp_packet(&session->target_socket, packet_data, packet_size,
+                                    (const struct sockaddr*)&session->target_addr);
+        if (ret != SEED_OK) {
+            log_error("Failed to forward packet to target");
+        } else {
+            session->packets_received++;
+            session->bytes_received += nread;
+            proxy->total_packets_forwarded++;
+            proxy->total_bytes_forwarded += nread;
+            
+            if (proxy->on_packet_forwarded) {
+                proxy->on_packet_forwarded(proxy, nread);
+            }
         }
     }
 

@@ -87,17 +87,22 @@ Client mode requires `[seed]` and proxy instance sections.
 - **Network**: libuv-based async I/O with custom binary protocol
 - **Server Mode**: Client session management and proxy registry
 - **Client Mode**: Server authentication, proxy management, keepalive
-- **TCP Proxy**: Full-duplex data forwarding with connection management
+- **TCP Proxy**: Full-duplex data forwarding with connection management and integrated TLS/SSH encryption  
+- **UDP Proxy**: Complete protocol integration with bidirectional packet forwarding
 - **Testing**: Comprehensive unit tests and integration tests
 
 ### ✅ Recently Completed (August 2025)
 - **Client-Side Local Forwarding**: Complete implementation with connection management
 - **DATA_FORWARD/DATA_BACKWARD Flow**: Full bidirectional data transfer through proxy tunnel
 - **Proxy ID Matching**: Flexible prefix-based proxy configuration lookup
+- **UDP Proxy Protocol Integration**: Complete implementation with MSG_TYPE_UDP_DATA messages
+- **UDP Proxy Callback System**: Added callback-based forwarding for local and remote modes
+- **TLS Encryption Integration**: Complete TCP proxy encryption with bidirectional encrypt/decrypt data flow
+- **Encryption Context Management**: Added full encryption support to TCP proxy structure
 
 ### 📋 Next Steps
-- Complete UDP proxy implementation
-- Add encryption support for TCP (TLS/SSH) and UDP (Table)
+- Complete SSH tunneling integration with TCP proxy
+- Add table encryption integration for UDP proxy
 - Performance optimization
 - Advanced monitoring and statistics
 

@@ -16,6 +16,7 @@
 static int send_echo_response(struct client_session *session, const struct msg_data *data_msg);
 static void on_data_backward_write(uv_write_t *req, int status);
 static int handle_data_forward(struct client_session *session, const struct msg_data *data_msg, const uint8_t *raw_buffer);
+static int handle_udp_data(struct client_session *session, const struct msg_udp_data *udp_msg, const uint8_t *raw_buffer);
 static struct local_connection *find_local_connection(struct client_session *session, const char *proxy_id, uint32_t connection_id);
 static struct local_connection *create_local_connection(struct client_session *session, const char *proxy_id, uint32_t connection_id);
 static void on_local_connect(uv_connect_t *req, int status);
@@ -512,6 +513,20 @@ int client_handle_message(struct client_session *session, const struct protocol_
             }
             break;
 
+        case MSG_TYPE_UDP_DATA:
+            {
+                const struct msg_udp_data *udp_msg = &msg->payload.udp_data;
+                log_debug("Received UDP_DATA: proxy_id='%s' src=%u:%u dst_port=%u data_length=%u",
+                         udp_msg->proxy_id, udp_msg->src_addr, udp_msg->src_port, 
+                         udp_msg->dst_port, udp_msg->data_length);
+                
+                /* Handle UDP data forwarding to local service */
+                if (handle_udp_data(session, udp_msg, raw_buffer) != 0) {
+                    log_error("Failed to forward UDP data to local service");
+                }
+            }
+            break;
+
         default:
             log_warning("Unknown message type: %d", msg->header.type);
             break;
@@ -984,6 +999,89 @@ static int handle_data_forward(struct client_session *session, const struct msg_
         log_warning("Local connection not active for proxy_id=%s connection_id=%u", 
                    data_msg->proxy_id, data_msg->connection_id);
     }
+    
+    return SEED_OK;
+}
+
+/**
+ * @brief Handle UDP data from server and forward to local service
+ */
+static int handle_udp_data(struct client_session *session, const struct msg_udp_data *udp_msg, const uint8_t *raw_buffer)
+{
+    /* Find the proxy instance */
+    struct proxy_instance *proxy = NULL;
+    for (int i = 0; i < session->proxy_count; i++) {
+        if (strncmp(session->proxies[i].name, udp_msg->proxy_id, strlen(session->proxies[i].name)) == 0) {
+            proxy = &session->proxies[i];
+            break;
+        }
+    }
+    
+    if (!proxy || proxy->type != PROXY_TYPE_UDP) {
+        log_error("UDP proxy not found for proxy_id='%s'", udp_msg->proxy_id);
+        return SEED_ERROR_FILE_NOT_FOUND;
+    }
+    
+    /* Create UDP socket if not exists */
+    static uv_udp_t udp_socket;
+    static bool udp_initialized = false;
+    
+    if (!udp_initialized) {
+        int ret = uv_udp_init(session->network->loop, &udp_socket);
+        if (ret != 0) {
+            log_error("Failed to initialize UDP socket: %s", uv_strerror(ret));
+            return SEED_ERROR_NETWORK;
+        }
+        udp_initialized = true;
+    }
+    
+    /* Forward UDP data to local service */
+    struct sockaddr_in dest_addr;
+    memset(&dest_addr, 0, sizeof(dest_addr));
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(proxy->local_port);
+    
+    /* Parse local address */
+    int ret = uv_ip4_addr(proxy->local_addr, proxy->local_port, &dest_addr);
+    if (ret != 0) {
+        log_error("Invalid local address %s:%u", proxy->local_addr, proxy->local_port);
+        return SEED_ERROR_INVALID_ARGS;
+    }
+    
+    /* Extract UDP data from raw buffer */
+    size_t data_offset = sizeof(struct protocol_header) + sizeof(struct msg_udp_data);
+    const uint8_t *udp_data = raw_buffer + data_offset;
+    
+    /* Allocate send request */
+    uv_udp_send_t *send_req = malloc(sizeof(*send_req));
+    if (!send_req) {
+        return SEED_ERROR_OUT_OF_MEMORY;
+    }
+    
+    /* Copy data for send */
+    uint8_t *send_data = malloc(udp_msg->data_length);
+    if (!send_data) {
+        free(send_req);
+        return SEED_ERROR_OUT_OF_MEMORY;
+    }
+    
+    memcpy(send_data, udp_data, udp_msg->data_length);
+    
+    uv_buf_t send_buf = uv_buf_init((char*)send_data, udp_msg->data_length);
+    
+    /* Send UDP packet to local service */
+    ret = uv_udp_send(send_req, &udp_socket, &send_buf, 1, 
+                     (const struct sockaddr*)&dest_addr, NULL);
+    
+    if (ret != 0) {
+        free(send_data);
+        free(send_req);
+        log_error("Failed to send UDP packet: %s", uv_strerror(ret));
+        return SEED_ERROR_NETWORK;
+    }
+    
+    log_debug("Forwarded UDP packet (%u bytes) to %s:%u", 
+             udp_msg->data_length, proxy->local_addr, proxy->local_port);
     
     return SEED_OK;
 }

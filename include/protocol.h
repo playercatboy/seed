@@ -34,8 +34,13 @@ enum message_type {
     MSG_TYPE_ERROR,          /** Error message */
     
     /* Data messages */
-    MSG_TYPE_DATA_FORWARD,   /** Forward data */
-    MSG_TYPE_DATA_BACKWARD,  /** Backward data */
+    MSG_TYPE_DATA_FORWARD,   /** Forward TCP data */
+    MSG_TYPE_DATA_BACKWARD,  /** Backward TCP data */
+    
+    /* UDP messages */
+    MSG_TYPE_UDP_DATA,       /** UDP packet data */
+    MSG_TYPE_UDP_BIND,       /** Bind UDP port on server */
+    MSG_TYPE_UDP_UNBIND,     /** Unbind UDP port on server */
     
     MSG_TYPE_MAX
 };
@@ -109,6 +114,18 @@ struct msg_data {
 } PACKED_STRUCT_ATTR;
 PACKED_STRUCT_END
 
+/** UDP data message */
+PACKED_STRUCT_BEGIN
+struct msg_udp_data {
+    char proxy_id[64];          /** Proxy ID */
+    uint32_t src_addr;          /** Source IP address */
+    uint16_t src_port;          /** Source port */
+    uint16_t dst_port;          /** Destination port */
+    uint32_t data_length;       /** Data length */
+    /* Followed by actual UDP data */
+} PACKED_STRUCT_ATTR;
+PACKED_STRUCT_END
+
 /** Error message */
 PACKED_STRUCT_BEGIN
 struct msg_error {
@@ -127,6 +144,7 @@ struct protocol_message {
         struct msg_proxy_request proxy_req;
         struct msg_proxy_response proxy_resp;
         struct msg_data data;
+        struct msg_udp_data udp_data;
         struct msg_error error;
         uint8_t raw[MAX_MESSAGE_SIZE];  /** Raw payload */
     } payload;
