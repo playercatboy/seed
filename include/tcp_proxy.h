@@ -10,6 +10,8 @@
 
 #include "common.h"
 #include "network.h"
+#include "config.h"
+#include "encrypt.h"
 #include <uv.h>
 
 /** Maximum number of TCP connections per proxy instance */
@@ -69,6 +71,10 @@ struct tcp_proxy {
     struct sockaddr_in bind_addr;    /**< Address to bind to */
     struct sockaddr_in target_addr;  /**< Target address to forward to */
     bool encrypt;               /**< Use encryption */
+    enum encrypt_impl encrypt_impl; /**< Encryption implementation */
+    
+    /** Encryption context */
+    struct encrypt_instance *encrypt_ctx; /**< Encryption context for TLS/SSH */
     
     /** Network context */
     struct network_context *network;
@@ -103,12 +109,14 @@ struct tcp_proxy {
  * @param[in]  target_addr  Target address to forward to
  * @param[in]  target_port  Target port to forward to
  * @param[in]  encrypt      Enable encryption
+ * @param[in]  encrypt_impl Encryption implementation type
  * 
  * @return SEED_OK on success, negative error code on failure
  */
 int tcp_proxy_init(struct tcp_proxy *proxy, struct network_context *network,
                   const char *name, const char *bind_addr, uint16_t bind_port,
-                  const char *target_addr, uint16_t target_port, bool encrypt);
+                  const char *target_addr, uint16_t target_port, bool encrypt,
+                  enum encrypt_impl encrypt_impl);
 
 /**
  * @brief Start TCP proxy listening

@@ -7,6 +7,7 @@
 
 #include "tcp_proxy.h"
 #include "log.h"
+#include "encrypt.h"
 #include <uv.h>
 
 /**
@@ -59,9 +60,16 @@ static void remove_connection(struct tcp_proxy *proxy, struct tcp_connection *co
  */
 static int forward_data(uv_stream_t *dest, const uint8_t *data, size_t size);
 
+/**
+ * @brief Forward data with encryption support
+ */
+static int forward_data_with_encryption(struct tcp_proxy *proxy, uv_stream_t *dest, 
+                                       const uint8_t *data, size_t size, bool encrypt_direction);
+
 int tcp_proxy_init(struct tcp_proxy *proxy, struct network_context *network,
                   const char *name, const char *bind_addr, uint16_t bind_port,
-                  const char *target_addr, uint16_t target_port, bool encrypt)
+                  const char *target_addr, uint16_t target_port, bool encrypt,
+                  enum encrypt_impl encrypt_impl)
 {
     if (!proxy || !network || !name || !bind_addr || !target_addr) {
         log_error("Invalid arguments to tcp_proxy_init");
@@ -72,6 +80,8 @@ int tcp_proxy_init(struct tcp_proxy *proxy, struct network_context *network,
     memset(proxy, 0, sizeof(*proxy));
     proxy->network = network;
     proxy->encrypt = encrypt;
+    proxy->encrypt_impl = encrypt_impl;
+    proxy->encrypt_ctx = NULL;
     proxy->connections = NULL;
     proxy->connection_count = 0;
     proxy->total_connections = 0;
@@ -105,9 +115,19 @@ int tcp_proxy_init(struct tcp_proxy *proxy, struct network_context *network,
 
     proxy->server_handle.data = proxy;
 
+    /* Initialize encryption if enabled */
+    if (encrypt && encrypt_impl != ENCRYPT_NONE) {
+        proxy->encrypt_ctx = encrypt_instance_create(encrypt_impl, NULL);
+        if (!proxy->encrypt_ctx) {
+            log_error("Failed to create encryption context for %s", encrypt_type_string(encrypt_impl));
+            return SEED_ERROR_ENCRYPTION;
+        }
+        log_info("TCP proxy '%s' encryption enabled: %s", name, encrypt_type_string(encrypt_impl));
+    }
+
     log_info("TCP proxy '%s' initialized: %s:%d -> %s:%d (encrypt=%s)",
              name, bind_addr, bind_port, target_addr, target_port,
-             encrypt ? "yes" : "no");
+             encrypt ? encrypt_type_string(encrypt_impl) : "no");
 
     return SEED_OK;
 }
@@ -214,6 +234,12 @@ void tcp_proxy_cleanup(struct tcp_proxy *proxy)
     /* Stop proxy first */
     tcp_proxy_stop(proxy);
 
+    /* Cleanup encryption context */
+    if (proxy->encrypt_ctx) {
+        encrypt_instance_destroy(proxy->encrypt_ctx);
+        proxy->encrypt_ctx = NULL;
+    }
+
     /* Clear proxy structure */
     memset(proxy, 0, sizeof(*proxy));
 }
@@ -317,6 +343,72 @@ static int forward_data(uv_stream_t *dest, const uint8_t *data, size_t size)
     }
 
     return SEED_OK;
+}
+
+/**
+ * @brief Forward data with encryption support
+ */
+static int forward_data_with_encryption(struct tcp_proxy *proxy, uv_stream_t *dest, 
+                                       const uint8_t *data, size_t size, bool encrypt_direction)
+{
+    if (!proxy || !dest || !data || size == 0) {
+        return SEED_ERROR_INVALID_ARGS;
+    }
+
+    const uint8_t *forward_data = data;
+    size_t forward_size = size;
+    uint8_t *encrypted_data = NULL;
+    
+    /* Apply encryption/decryption if enabled */
+    if (proxy->encrypt && proxy->encrypt_ctx) {
+        if (encrypt_direction) {
+            /* Encrypt data going to target */
+            char *cipher_text = NULL;
+            size_t cipher_len = 0;
+            
+            int ret = encrypt_instance_encrypt(proxy->encrypt_ctx, 
+                                             (const char*)data, size,
+                                             &cipher_text, &cipher_len);
+            if (ret != SEED_OK || !cipher_text) {
+                log_error("Failed to encrypt data for forwarding");
+                return ret;
+            }
+            
+            encrypted_data = (uint8_t*)cipher_text;
+            forward_data = encrypted_data;
+            forward_size = cipher_len;
+            
+            log_debug("Encrypted %zu bytes to %zu bytes", size, cipher_len);
+        } else {
+            /* Decrypt data coming from target */
+            char *plain_text = NULL;
+            size_t plain_len = 0;
+            
+            int ret = encrypt_instance_decrypt(proxy->encrypt_ctx,
+                                             (const char*)data, size,
+                                             &plain_text, &plain_len);
+            if (ret != SEED_OK || !plain_text) {
+                log_error("Failed to decrypt data for forwarding");
+                return ret;
+            }
+            
+            encrypted_data = (uint8_t*)plain_text;
+            forward_data = encrypted_data;
+            forward_size = plain_len;
+            
+            log_debug("Decrypted %zu bytes to %zu bytes", size, plain_len);
+        }
+    }
+    
+    /* Forward the data (encrypted or plain) */
+    int ret = forward_data(dest, forward_data, forward_size);
+    
+    /* Free encrypted/decrypted data if allocated */
+    if (encrypted_data) {
+        free(encrypted_data);
+    }
+    
+    return ret;
 }
 
 /* libuv callback functions */
@@ -456,9 +548,9 @@ static void on_client_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *b
         return;
     }
 
-    /* Forward data to target */
-    int ret = forward_data((uv_stream_t*)&conn->target_handle, 
-                          (const uint8_t*)buf->base, nread);
+    /* Forward data to target (encrypt if needed) */
+    int ret = forward_data_with_encryption(proxy, (uv_stream_t*)&conn->target_handle, 
+                                          (const uint8_t*)buf->base, nread, true);
     if (ret != SEED_OK) {
         log_error("Failed to forward data to target");
         tcp_connection_close(conn);
@@ -499,9 +591,9 @@ static void on_target_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *b
         return;
     }
 
-    /* Forward data to client */
-    int ret = forward_data((uv_stream_t*)&conn->client_handle, 
-                          (const uint8_t*)buf->base, nread);
+    /* Forward data to client (decrypt if needed) */
+    int ret = forward_data_with_encryption(proxy, (uv_stream_t*)&conn->client_handle, 
+                                          (const uint8_t*)buf->base, nread, false);
     if (ret != SEED_OK) {
         log_error("Failed to forward data to client");
         tcp_connection_close(conn);
