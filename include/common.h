@@ -32,6 +32,19 @@
     #include <fcntl.h>
 #endif
 
+/* Cross-platform packed struct attribute */
+#ifdef _MSC_VER
+    #define PACKED_STRUCT_BEGIN __pragma(pack(push, 1))
+    #define PACKED_STRUCT_END __pragma(pack(pop))
+    #define PACKED_STRUCT_ATTR
+    /* POSIX compatibility */
+    #define strdup _strdup
+#else
+    #define PACKED_STRUCT_BEGIN
+    #define PACKED_STRUCT_END
+    #define PACKED_STRUCT_ATTR __attribute__((packed))
+#endif
+
 /* Version information */
 #define SEED_VERSION_MAJOR 1
 #define SEED_VERSION_MINOR 0

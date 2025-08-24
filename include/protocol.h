@@ -58,27 +58,27 @@ struct protocol_header {
     uint32_t sequence;       /** Sequence number */
     uint32_t length;         /** Payload length */
     uint32_t checksum;       /** Header checksum */
-} __attribute__((packed));
+} PACKED_STRUCT_ATTR;
 
 /** Hello message */
 struct msg_hello {
     uint32_t protocol_version;  /** Protocol version */
     char client_id[64];         /** Client identifier */
     uint32_t capabilities;      /** Client capabilities */
-} __attribute__((packed));
+} PACKED_STRUCT_ATTR;
 
 /** Authentication request */
 struct msg_auth_request {
     char username[64];          /** Username */
     char password[128];         /** Password or token */
-} __attribute__((packed));
+} PACKED_STRUCT_ATTR;
 
 /** Authentication response */
 struct msg_auth_response {
     uint32_t status;            /** 0 = success, non-zero = error */
     char message[256];          /** Response message */
     char session_token[256];    /** Session token if successful */
-} __attribute__((packed));
+} PACKED_STRUCT_ATTR;
 
 /** Proxy request */
 struct msg_proxy_request {
@@ -88,7 +88,7 @@ struct msg_proxy_request {
     uint16_t remote_port;       /** Remote port to bind */
     uint16_t encrypt_type;      /** Encryption type */
     char local_addr[16];        /** Local address */
-} __attribute__((packed));
+} PACKED_STRUCT_ATTR;
 
 /** Proxy response */
 struct msg_proxy_response {
@@ -96,21 +96,26 @@ struct msg_proxy_response {
     char proxy_id[64];          /** Assigned proxy ID */
     uint16_t assigned_port;     /** Actually assigned port */
     char message[256];          /** Response message */
-} __attribute__((packed));
+} PACKED_STRUCT_ATTR;
+PACKED_STRUCT_END
 
 /** Data forward/backward message */
+PACKED_STRUCT_BEGIN
 struct msg_data {
     char proxy_id[64];          /** Proxy ID */
     uint32_t connection_id;     /** Connection identifier */
     uint32_t data_length;       /** Data length */
     /* Followed by actual data */
-} __attribute__((packed));
+} PACKED_STRUCT_ATTR;
+PACKED_STRUCT_END
 
 /** Error message */
+PACKED_STRUCT_BEGIN
 struct msg_error {
     uint32_t error_code;        /** Error code */
     char message[256];          /** Error message */
-} __attribute__((packed));
+} PACKED_STRUCT_ATTR;
+PACKED_STRUCT_END
 
 /** Protocol message structure */
 struct protocol_message {

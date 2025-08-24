@@ -61,13 +61,24 @@ gcc -Wall -Wextra -I../include -o test_jwt_standalone test_jwt_standalone.c ../s
 ## Test Coverage
 
 ### ✅ Implemented Tests
+
+#### Core Module Tests
 - **Configuration Loading** - INI parsing, validation, server/client configs
-- **Command Line Parsing** - All options (-h, -v, -f, -s), error handling
+- **Command Line Parsing** - All options (-h, -v, -f, -s, -e, -p), error handling
 - **JWT Authentication** - Token generation, verification, password hashing
 - **Protocol Messages** - Serialization, deserialization, validation, CRC32
 - **Logging System** - Log levels, formatting, color output
+
+#### Encryption Module Tests
+- **Table Encryption** - Key generation, encryption/decryption, validation
+- **TLS Encryption** - Context creation, certificate handling, handshake simulation
+- **SSH Encryption** - Connection management, authentication methods
+- **Encrypted Auth Files** - Password-based file encryption/decryption
+
+#### Proxy and Networking Tests  
 - **Client Mode Logic** - Proxy management, state handling, parameter validation
 - **TCP Proxy Logic** - Connection management, lifecycle, statistics tracking
+- **UDP Proxy Logic** - Session management, packet forwarding
 - **TCP/UDP Echo Servers** - Multi-threaded echo server implementation
 - **Cross-Platform Networking** - Windows and Linux socket programming
 - **Data Integrity Verification** - memcmp() payload validation
@@ -75,10 +86,10 @@ gcc -Wall -Wextra -I../include -o test_jwt_standalone test_jwt_standalone.c ../s
 - **End-to-End Proxy Flow** - Complete proxy simulation testing
 
 ### 📋 Future Tests
-- Network layer integration tests (requires libuv runtime)
-- Server mode integration tests with live connections
-- UDP proxy tests (when implemented)
-- Encryption module tests (when implemented)
+- Network layer integration tests with libuv runtime
+- Server mode integration tests with live connections  
+- Performance benchmarking tests
+- Memory leak detection tests
 
 ## Test Framework Features
 

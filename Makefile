@@ -24,7 +24,8 @@ SRCS = src/main.c \
        src/udp_proxy.c \
        src/tls.c \
        src/ssh_encrypt.c \
-       src/table_crypt.c \
+       src/table_encrypt.c \
+       src/tls_encrypt.c \
        src/encrypt.c \
        src/inih/ini.c
 
