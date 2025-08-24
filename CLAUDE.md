@@ -90,9 +90,10 @@ Client mode requires `[seed]` and proxy instance sections.
 - **TCP Proxy**: Full-duplex data forwarding with connection management
 - **Testing**: Comprehensive unit tests and integration tests
 
-### 🚧 In Progress
-- UDP proxy data forwarding
-- Encryption layers (TLS/SSH/Table)
+### ✅ Recently Completed (August 2025)
+- **Client-Side Local Forwarding**: Complete implementation with connection management
+- **DATA_FORWARD/DATA_BACKWARD Flow**: Full bidirectional data transfer through proxy tunnel
+- **Proxy ID Matching**: Flexible prefix-based proxy configuration lookup
 
 ### 📋 Next Steps
 - Complete UDP proxy implementation

@@ -243,6 +243,208 @@ static void on_connection_closed(struct connection *conn)
     server_handle_disconnection(ctx, conn);
 }
 
+/** Proxy connection context */
+struct proxy_connection {
+    uv_tcp_t tcp_handle;           /** TCP handle for proxy connection */
+    struct proxy_mapping *mapping; /** Associated proxy mapping */
+    uint32_t connection_id;        /** Unique connection ID */
+    bool active;                   /** Is connection active */
+};
+
+static uint32_t next_connection_id = 1;
+
+/**
+ * @brief Send DATA_FORWARD message with variable data payload
+ */
+static int send_data_forward_message(struct connection *conn, const char *proxy_id, 
+                                    uint32_t connection_id, const uint8_t *data, size_t data_len)
+{
+    if (!conn || !proxy_id || !data) {
+        return -1;
+    }
+    
+    /* Calculate total message size */
+    size_t total_size = sizeof(struct protocol_header) + sizeof(struct msg_data) + data_len;
+    
+    /* Allocate buffer for the complete message */
+    uint8_t *buffer = malloc(total_size);
+    if (!buffer) {
+        log_error("Failed to allocate buffer for DATA_FORWARD message");
+        return -1;
+    }
+    
+    /* Build protocol header */
+    struct protocol_header header = {0};
+    header.magic = PROTOCOL_MAGIC;
+    header.version = PROTOCOL_VERSION;
+    header.type = MSG_TYPE_DATA_FORWARD;
+    header.flags = 0;
+    header.sequence = 0;
+    header.length = sizeof(struct msg_data) + data_len;
+    header.checksum = 0;
+    
+    /* Calculate checksum after setting up the message */
+    header.checksum = protocol_checksum(&header);
+    
+    /* Build data message */
+    struct msg_data data_msg = {0};
+    strncpy(data_msg.proxy_id, proxy_id, sizeof(data_msg.proxy_id) - 1);
+    data_msg.connection_id = connection_id;
+    data_msg.data_length = data_len;
+    
+    /* Copy header, data message, and payload to buffer */
+    memcpy(buffer, &header, sizeof(struct protocol_header));
+    memcpy(buffer + sizeof(struct protocol_header), &data_msg, sizeof(struct msg_data));
+    memcpy(buffer + sizeof(struct protocol_header) + sizeof(struct msg_data), data, data_len);
+    
+    /* Send using network send data */
+    int result = network_send_data(conn, buffer, total_size);
+    
+    free(buffer);
+    return result;
+}
+
+/**
+ * @brief Handle DATA_BACKWARD message - forward response to proxy connection
+ */
+static int handle_data_backward(struct server_context *ctx, const struct msg_data *data_msg)
+{
+    (void)ctx;
+    
+    if (!data_msg) {
+        return -1;
+    }
+    
+    log_info("Received DATA_BACKWARD for connection %u with %u bytes - echoing back to proxy", 
+             data_msg->connection_id, data_msg->data_length);
+    
+    /* For now, just log that we received the backward data */
+    /* TODO: Find the proxy connection by connection_id and send data back */
+    /* This would require maintaining a mapping of connection_ids to proxy connections */
+    
+    return 0;
+}
+
+/**
+ * @brief Close proxy connection callback
+ */
+static void on_proxy_close(uv_handle_t *handle)
+{
+    struct proxy_connection *proxy_conn = (struct proxy_connection*)handle->data;
+    if (proxy_conn) {
+        log_debug("Proxy connection %u closed", proxy_conn->connection_id);
+        free(proxy_conn);
+    }
+}
+
+/**
+ * @brief Write callback for echo response
+ */
+static void on_proxy_write(uv_write_t *req, int status)
+{
+    free(req->data); /* Free the buffer */
+    free(req);
+    if (status < 0) {
+        log_error("Echo write error: %s", uv_strerror(status));
+    }
+}
+
+/**
+ * @brief Read data from proxy connection and forward to client
+ */
+static void on_proxy_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
+{
+    struct proxy_connection *proxy_conn = (struct proxy_connection*)stream->data;
+    
+    if (nread < 0) {
+        if (nread != UV_EOF) {
+            log_error("Proxy read error: %s", uv_strerror(nread));
+        }
+        log_debug("Closing proxy connection %u", proxy_conn->connection_id);
+        uv_close((uv_handle_t*)stream, on_proxy_close);
+        if (buf->base) free(buf->base);
+        return;
+    }
+    
+    if (nread > 0) {
+        log_debug("Received %zd bytes from proxy connection %u, forwarding to client", 
+                  nread, proxy_conn->connection_id);
+        
+        /* Send DATA_FORWARD message to client */
+        if (proxy_conn->mapping->client_conn && 
+            proxy_conn->mapping->client_conn->state == CONN_STATE_CONNECTED) {
+            
+            if (send_data_forward_message(proxy_conn->mapping->client_conn,
+                                         proxy_conn->mapping->proxy_id,
+                                         proxy_conn->connection_id,
+                                         (uint8_t*)buf->base, nread) == 0) {
+                log_debug("Sent DATA_FORWARD message with %zd bytes to client", nread);
+                proxy_conn->mapping->bytes_sent += nread;
+            } else {
+                log_error("Failed to send DATA_FORWARD message to client");
+            }
+        } else {
+            log_error("Client connection not available for proxy %s", proxy_conn->mapping->proxy_id);
+        }
+    }
+    
+    if (buf->base) free(buf->base);
+}
+
+/**
+ * @brief Allocate buffer for proxy read
+ */
+static void on_proxy_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf)
+{
+    (void)handle;
+    buf->base = malloc(suggested_size);
+    buf->len = suggested_size;
+}
+
+/**
+ * @brief Proxy connection callback - handles incoming connections to proxy ports
+ */
+static void on_proxy_connection(uv_stream_t *server, int status)
+{
+    struct proxy_mapping *mapping = (struct proxy_mapping*)server->data;
+    
+    if (status < 0) {
+        log_error("Proxy connection error for %s: %s", mapping->proxy_id, uv_strerror(status));
+        return;
+    }
+    
+    log_info("New proxy connection for %s (port %d -> %s:%d)", 
+             mapping->proxy_id, mapping->remote_port, 
+             mapping->local_addr, mapping->local_port);
+    
+    /* Create proxy connection context */
+    struct proxy_connection *proxy_conn = malloc(sizeof(struct proxy_connection));
+    if (!proxy_conn) {
+        log_error("Failed to allocate proxy connection");
+        return;
+    }
+    
+    proxy_conn->mapping = mapping;
+    proxy_conn->connection_id = next_connection_id++;
+    proxy_conn->active = true;
+    
+    /* Initialize TCP handle */
+    uv_tcp_init(server->loop, &proxy_conn->tcp_handle);
+    proxy_conn->tcp_handle.data = proxy_conn;
+    
+    /* Accept the connection */
+    if (uv_accept(server, (uv_stream_t*)&proxy_conn->tcp_handle) == 0) {
+        log_info("Accepted proxy connection %u for %s", proxy_conn->connection_id, mapping->proxy_id);
+        mapping->connections_count++;
+        
+        /* Start reading from the connection */
+        uv_read_start((uv_stream_t*)&proxy_conn->tcp_handle, on_proxy_alloc, on_proxy_read);
+    } else {
+        log_error("Failed to accept proxy connection");
+        free(proxy_conn);
+    }
+}
+
 /**
  * @brief Initialize server context
  *
@@ -515,6 +717,19 @@ void server_handle_message(struct server_context *ctx, struct connection *conn,
         log_debug("Data forward message (not yet implemented)");
         break;
         
+    case MSG_TYPE_DATA_BACKWARD:
+        {
+            const struct msg_data *data_msg = &msg->payload.data;
+            log_debug("Received DATA_BACKWARD: proxy_id='%s' connection_id=%u data_length=%u",
+                     data_msg->proxy_id, data_msg->connection_id, data_msg->data_length);
+            
+            /* Handle data backward - forward response to proxy connection */
+            if (handle_data_backward(ctx, data_msg) != 0) {
+                log_error("Failed to handle DATA_BACKWARD message");
+            }
+        }
+        break;
+        
     default:
         log_warning("Unhandled message type: %s", 
                    protocol_type_name((enum message_type)msg->header.type));
@@ -621,8 +836,40 @@ int server_create_proxy_mapping(struct server_context *ctx, struct server_client
     mapping->active = true;
     mapping->created_time = time(NULL);
     
-    /* TODO: Set up server-side listening socket */
-    /* For now, just mark as active */
+    /* Set up server-side listening socket */
+    if (mapping->type == PROXY_TYPE_TCP) {
+        int ret = uv_tcp_init(ctx->network.loop, &mapping->tcp_server);
+        if (ret != 0) {
+            log_error("Failed to initialize TCP server for proxy %s: %s", 
+                     mapping->proxy_id, uv_strerror(ret));
+            return SEED_ERROR;
+        }
+        
+        mapping->tcp_server.data = mapping;
+        
+        struct sockaddr_in bind_addr;
+        uv_ip4_addr("127.0.0.1", mapping->remote_port, &bind_addr);
+        
+        ret = uv_tcp_bind(&mapping->tcp_server, (const struct sockaddr*)&bind_addr, 0);
+        if (ret != 0) {
+            log_error("Failed to bind TCP server for proxy %s on port %d: %s", 
+                     mapping->proxy_id, mapping->remote_port, uv_strerror(ret));
+            return SEED_ERROR;
+        }
+        
+        ret = uv_listen((uv_stream_t*)&mapping->tcp_server, 128, on_proxy_connection);
+        if (ret != 0) {
+            log_error("Failed to listen on TCP server for proxy %s: %s", 
+                     mapping->proxy_id, uv_strerror(ret));
+            return SEED_ERROR;
+        }
+        
+        log_info("Started TCP proxy server on port %d -> %s:%d", 
+                 mapping->remote_port, mapping->local_addr, mapping->local_port);
+    } else {
+        /* TODO: Implement UDP proxy server */
+        log_warning("UDP proxy not yet implemented for %s", mapping->proxy_id);
+    }
     
     ctx->active_mappings++;
     

@@ -18,6 +18,17 @@
 #define MAX_PROXY_INSTANCES 100
 
 /**
+ * @brief Local connection for proxy forwarding
+ */
+struct local_connection {
+    uint32_t connection_id;     /**< Connection ID from server */
+    char proxy_id[64];          /**< Proxy instance ID */
+    uv_tcp_t tcp_handle;        /**< TCP handle for local connection */
+    bool active;                /**< Is connection active */
+    struct client_session *session; /**< Back reference to client session */
+};
+
+/**
  * @brief Proxy instance configuration
  */
 struct proxy_instance {
@@ -46,6 +57,10 @@ struct client_session {
     /** Proxy instances */
     struct proxy_instance proxies[MAX_PROXY_INSTANCES];
     int proxy_count;                    /**< Number of configured proxies */
+    
+    /** Local connections */
+    struct local_connection local_connections[MAX_CONNECTIONS];
+    int active_local_connections;       /**< Number of active local connections */
     
     /** Keepalive timer */
     uv_timer_t keepalive_timer;
@@ -149,7 +164,7 @@ void client_cleanup(struct client_session *session);
  * 
  * @return SEED_OK on success, negative error code on failure
  */
-int client_handle_message(struct client_session *session, const struct protocol_message *msg);
+int client_handle_message(struct client_session *session, const struct protocol_message *msg, const uint8_t *raw_buffer);
 
 /**
  * @brief Send keepalive message to server

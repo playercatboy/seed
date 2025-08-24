@@ -176,6 +176,9 @@ static int config_ini_handler(void *user, const char *section, const char *name,
         } else if (strcmp(name, "username") == 0) {
             strncpy(config->username, value, sizeof(config->username) - 1);
             config->username[sizeof(config->username) - 1] = '\0';
+        } else if (strcmp(name, "password") == 0) {
+            strncpy(config->password, value, sizeof(config->password) - 1);
+            config->password[sizeof(config->password) - 1] = '\0';
         }
     }
     /* Parse [server] section */

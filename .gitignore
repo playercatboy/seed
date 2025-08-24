@@ -46,6 +46,10 @@ seed.conf
 seed.auth
 !seed.conf.example
 !seed.auth.example
+client.conf
+client_local.conf
+server.conf
+server_local.conf
 
 # Log files
 *.log
@@ -65,7 +69,22 @@ desktop.ini
 .vscode/
 .idea/
 *.sublime-*
+.claude/settings.local.json
 
 # Test outputs
 tests/*.exe
 tests/*.out
+
+# Server credentials (DO NOT COMMIT)
+.ssh_config
+server_creds.txt
+
+# Test and debug files
+Remote
+setup_server.sh
+test_remote_access.sh
+debug_protocol.c
+run_echo_test.bat
+test_echo_client.c
+seed-client-fixed.tar.gz
+*.tar.gz

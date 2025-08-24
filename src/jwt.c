@@ -68,6 +68,74 @@ static int base64url_encode(const unsigned char *input, size_t input_len,
 }
 
 /**
+ * @brief Base64 URL decode
+ *
+ * @param[in]  input       Input base64 string
+ * @param[out] output      Output buffer
+ * @param[in]  output_len  Output buffer size
+ *
+ * @return Length of decoded data, or -1 on error
+ */
+static int base64url_decode(const char *input, unsigned char *output, size_t output_len)
+{
+    static const char base64_chars[] = 
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    
+    size_t input_len = strlen(input);
+    if (input_len == 0) {
+        return 0;
+    }
+    
+    /* Calculate expected output length */
+    size_t expected_len = (input_len * 3) / 4;
+    if (expected_len >= output_len) {
+        return -1;
+    }
+    
+    size_t i, j = 0;
+    uint32_t triple = 0;
+    int pad_count = 0;
+    
+    for (i = 0; i < input_len; i += 4) {
+        triple = 0;
+        
+        for (int k = 0; k < 4 && i + k < input_len; k++) {
+            char c = input[i + k];
+            int val = -1;
+            
+            /* Find character in base64 alphabet */
+            for (int l = 0; l < 64; l++) {
+                if (base64_chars[l] == c) {
+                    val = l;
+                    break;
+                }
+            }
+            
+            if (val == -1) {
+                if (c == '=') {
+                    pad_count++;
+                    val = 0; /* Treat padding as 0 */
+                } else {
+                    return -1; /* Invalid character */
+                }
+            }
+            
+            triple |= (val << (18 - k * 6));
+        }
+        
+        /* Extract bytes from triple */
+        if (j < output_len) output[j++] = (triple >> 16) & 0xFF;
+        if (j < output_len && i + 1 < input_len) output[j++] = (triple >> 8) & 0xFF;
+        if (j < output_len && i + 2 < input_len) output[j++] = triple & 0xFF;
+    }
+    
+    /* Adjust for padding */
+    j -= pad_count;
+    
+    return (int)j;
+}
+
+/**
  * @brief Hash password using SHA256
  *
  * @param[in]  password     The password to hash
@@ -308,6 +376,10 @@ int jwt_generate(const char *password, char *token, size_t token_len)
     return SEED_OK;
 }
 
+/* Forward declarations */
+static int jwt_extract_password_hash(const char *password, char *hash_out);
+static int jwt_extract_hash_from_token(const char *token, char *hash_out);
+
 /**
  * @brief Verify password against JWT token
  *
@@ -329,32 +401,110 @@ int jwt_verify(const char *password, const char *token)
         return SEED_ERROR;
     }
     
-    /* Simple comparison for now - in production, should parse and validate properly */
-    /* Extract and compare just the password hash part */
-    char *gen_payload_start = strchr(generated_token, '.');
-    char *gen_payload_end = NULL;
-    char *tok_payload_start = strchr(token, '.');
-    char *tok_payload_end = NULL;
+    log_debug("JWT verify: password='%s'", password);
+    log_debug("JWT verify: stored_token='%s'", token);
+    log_debug("JWT verify: generated_token='%s'", generated_token);
     
-    if (gen_payload_start && tok_payload_start) {
-        gen_payload_start++;
-        tok_payload_start++;
-        gen_payload_end = strchr(gen_payload_start, '.');
-        tok_payload_end = strchr(tok_payload_start, '.');
-        
-        if (gen_payload_end && tok_payload_end) {
-            /* Compare payload lengths */
-            size_t gen_len = gen_payload_end - gen_payload_start;
-            size_t tok_len = tok_payload_end - tok_payload_start;
-            
-            /* For now, just check if password hashes match in payload */
-            /* In production, should properly decode and parse JSON */
-            if (gen_len == tok_len && 
-                memcmp(gen_payload_start, tok_payload_start, gen_len) == 0) {
-                return SEED_OK;
-            }
-        }
+    /* Extract password hash from generated token */
+    char generated_hash[65];
+    if (jwt_extract_password_hash(password, generated_hash) != SEED_OK) {
+        log_debug("JWT verify: Failed to generate hash for password");
+        return SEED_ERROR;
     }
     
+    /* Extract password hash from stored token by decoding payload */
+    char stored_hash[65];
+    if (jwt_extract_hash_from_token(token, stored_hash) != SEED_OK) {
+        log_debug("JWT verify: Failed to extract hash from stored token");
+        return SEED_ERROR;
+    }
+    
+    log_debug("JWT verify: generated_hash='%s'", generated_hash);
+    log_debug("JWT verify: stored_hash='%s'", stored_hash);
+    
+    /* Compare password hashes directly */
+    if (strcmp(generated_hash, stored_hash) == 0) {
+        log_debug("JWT verify: Password hashes match - authentication successful");
+        return SEED_OK;
+    }
+    
+    log_debug("JWT verify: Password hashes don't match - authentication failed");
     return SEED_ERROR_AUTH_FAILED;
+}
+
+/**
+ * @brief Extract password hash directly from password
+ */
+static int jwt_extract_password_hash(const char *password, char *hash_out)
+{
+    if (!password || !hash_out) {
+        return SEED_ERROR_INVALID_ARGS;
+    }
+    
+    unsigned char hash_bytes[32];
+    return jwt_hash_password(password, hash_bytes, hash_out);
+}
+
+/**
+ * @brief Extract password hash from JWT token by decoding payload
+ */
+static int jwt_extract_hash_from_token(const char *token, char *hash_out)
+{
+    if (!token || !hash_out) {
+        return SEED_ERROR_INVALID_ARGS;
+    }
+    
+    /* Find payload section (between first and second dots) */
+    char *payload_start = strchr(token, '.');
+    if (!payload_start) {
+        return SEED_ERROR;
+    }
+    payload_start++; /* Skip the dot */
+    
+    char *payload_end = strchr(payload_start, '.');
+    if (!payload_end) {
+        return SEED_ERROR;
+    }
+    
+    /* Extract payload */
+    size_t payload_len = payload_end - payload_start;
+    char payload_b64[512];
+    if (payload_len >= sizeof(payload_b64)) {
+        return SEED_ERROR;
+    }
+    
+    memcpy(payload_b64, payload_start, payload_len);
+    payload_b64[payload_len] = '\0';
+    
+    /* Base64 URL decode payload */
+    char payload_json[512];
+    int decoded_len = base64url_decode(payload_b64, (unsigned char*)payload_json, sizeof(payload_json) - 1);
+    if (decoded_len < 0) {
+        return SEED_ERROR;
+    }
+    payload_json[decoded_len] = '\0';
+    
+    /* Extract 'sub' field from JSON payload */
+    /* Simple string search - in production should use proper JSON parser */
+    char *sub_start = strstr(payload_json, "\"sub\":\"");
+    if (!sub_start) {
+        return SEED_ERROR;
+    }
+    sub_start += 7; /* Skip "sub":" */
+    
+    char *sub_end = strchr(sub_start, '\"');
+    if (!sub_end) {
+        return SEED_ERROR;
+    }
+    
+    /* Extract the hash */
+    size_t hash_len = sub_end - sub_start;
+    if (hash_len >= 65) { /* SHA256 hash is 64 chars + null terminator */
+        return SEED_ERROR;
+    }
+    
+    memcpy(hash_out, sub_start, hash_len);
+    hash_out[hash_len] = '\0';
+    
+    return SEED_OK;
 }

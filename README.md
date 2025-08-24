@@ -249,9 +249,11 @@ Test coverage includes:
 - **Configuration** (`src/config.c`) - INI file parsing and validation
 - **Authentication** (`src/auth.c`, `src/jwt.c`) - JWT-based security with encrypted file support
 - **Network Core** (`src/network.c`) - libuv-based async networking
-- **Protocol Handler** (`src/protocol.c`) - Binary message protocol
+- **Protocol Handler** (`src/protocol.c`) - Binary message protocol with DATA_FORWARD/DATA_BACKWARD
 - **Server Mode** (`src/server.c`) - Client management and proxy registry
-- **Client Mode** (`src/client.c`) - Server connection and tunnel management
+- **Client Mode** (`src/client.c`) - Server connection, tunnel management, and **complete local service forwarding**
+- **TCP Proxy** (`src/tcp_proxy.c`) - Full bidirectional TCP data forwarding with connection management
+- **UDP Proxy** (`src/udp_proxy.c`) - Packet forwarding with session tracking
 - **Encryption Manager** (`src/encrypt.c`) - Pluggable encryption architecture
 - **Table Encryption** (`src/table_encrypt.c`) - Fast UDP packet encryption
 - **TLS Encryption** (`src/tls_encrypt.c`) - OpenSSL-based TCP encryption
