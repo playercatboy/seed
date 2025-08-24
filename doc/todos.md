@@ -167,6 +167,13 @@ This document contains the hierarchical TODO list for the Seed reverse proxy pro
 - **✅ MSVC Build**: Source code compiles successfully (requires OpenSSL/libssh lib files)
 - **✅ Cross-Platform Compatibility**: Packed struct macros, POSIX compatibility
 
+### 🔧 Recent Bug Fixes (August 2025)
+**Critical fixes for remote testing and protocol communication:**
+- **✅ Client Configuration Bug**: Fixed hardcoded server connection (127.0.0.1:7000) to properly read from config file
+- **✅ Protocol Serialization Bug**: Fixed HELLO message serialization return value checking (expected byte count, not SEED_OK)
+- **✅ Remote Testing Setup**: Successfully established client-server communication with remote Debian server
+- **✅ Echo Server Infrastructure**: Created standalone TCP/UDP echo servers for integration testing
+
 ### 📋 Future Enhancements (Post-1.0)
 - OpenSSL/libssh library integration for MSVC builds
 - Performance optimization and benchmarking

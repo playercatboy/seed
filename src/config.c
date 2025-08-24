@@ -168,6 +168,14 @@ static int config_ini_handler(void *user, const char *section, const char *name,
             }
         } else if (strcmp(name, "log_level") == 0) {
             config->log_level = parse_log_level(value);
+        } else if (strcmp(name, "server_addr") == 0) {
+            strncpy(config->server_addr, value, sizeof(config->server_addr) - 1);
+            config->server_addr[sizeof(config->server_addr) - 1] = '\0';
+        } else if (strcmp(name, "server_port") == 0) {
+            config->server_port = atoi(value);
+        } else if (strcmp(name, "username") == 0) {
+            strncpy(config->username, value, sizeof(config->username) - 1);
+            config->username[sizeof(config->username) - 1] = '\0';
         }
     }
     /* Parse [server] section */
@@ -225,9 +233,17 @@ void config_init(struct seed_config *config)
     /* Set defaults */
     config->mode = MODE_UNKNOWN;
     config->log_level = LOG_ERROR;
+    
+    /* Server defaults */
     config->server.bind_port = DEFAULT_SERVER_PORT;
     strcpy(config->server.bind_addr, "0.0.0.0");
     strcpy(config->server.auth_file, DEFAULT_AUTH_FILE);
+    
+    /* Client defaults */
+    strcpy(config->server_addr, "127.0.0.1");
+    config->server_port = DEFAULT_SERVER_PORT;
+    strcpy(config->username, "user");
+    
     config->proxy_count = 0;
 }
 

@@ -195,10 +195,9 @@ int main(int argc, char *argv[])
             }
         }
         
-        /* Connect to server - for now use hardcoded values */
-        /* TODO: Add server address/port to client configuration */
-        const char *server_addr = "127.0.0.1";
-        uint16_t server_port = 7000;
+        /* Get server address and port from configuration */
+        const char *server_addr = config.server_addr;
+        uint16_t server_port = (uint16_t)config.server_port;
         
         client_result = client_connect(&client, server_addr, server_port);
         if (client_result != SEED_OK) {

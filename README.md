@@ -319,6 +319,14 @@ seed/
 - ✅ **GCC/MinGW Build**: Fully functional executable with working encryption
 - ✅ **MSVC Build**: Source code compiles successfully, requires library linking
 - ✅ **All encryption modules**: Implemented and ready for use
+- ✅ **Remote Testing**: Client-server communication verified with remote Debian server
+- ✅ **Bug Fixes**: Critical protocol serialization and configuration parsing issues resolved
+
+### 🔧 Recent Updates (August 2025)
+- **Fixed client configuration bug**: Client now properly reads server address from config instead of hardcoded localhost
+- **Fixed protocol serialization**: HELLO message serialization now works correctly with proper return value handling  
+- **Added standalone echo servers**: Created dedicated TCP (port 33000) and UDP (port 34000) echo servers for testing
+- **Verified remote connectivity**: Successfully established client connection to remote server at 74.82.196.126:7000
 
 ### 📋 Future Enhancements
 - [ ] OpenSSL/libssh library integration for MSVC builds

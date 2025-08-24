@@ -20,6 +20,10 @@ This directory contains the comprehensive test suite for the Seed reverse proxy 
 - `test_echo_simple.c` - Multi-threaded TCP/UDP echo server test
 - `test_proxy_concept.c` - Conceptual proxy flow demonstration
 
+### Standalone Echo Servers
+- `tcp_echo_server.c` - Dedicated TCP echo server for remote testing (port 33000)
+- `udp_echo_server.c` - Dedicated UDP echo server for remote testing (port 34000)
+
 ### Test Runner
 - `run_tests.c` - Comprehensive test runner that executes all unit tests
 
@@ -48,6 +52,19 @@ Builds and runs each unit test separately.
 make test-standalone
 ```
 Builds and runs integration tests that verify module interactions.
+
+#### Echo Server Testing
+```bash
+# Build and run TCP echo server
+gcc tcp_echo_server.c -o tcp_echo_server.exe -lws2_32  # Windows
+gcc tcp_echo_server.c -o tcp_echo_server                # Linux
+./tcp_echo_server.exe 33000
+
+# Build and run UDP echo server  
+gcc udp_echo_server.c -o udp_echo_server.exe -lws2_32  # Windows
+gcc udp_echo_server.c -o udp_echo_server                # Linux
+./udp_echo_server.exe 34000
+```
 
 #### Manual Test Building
 ```bash
@@ -84,6 +101,11 @@ gcc -Wall -Wextra -I../include -o test_jwt_standalone test_jwt_standalone.c ../s
 - **Data Integrity Verification** - memcmp() payload validation
 - **Thread Management** - Platform-specific threading (POSIX/Windows)
 - **End-to-End Proxy Flow** - Complete proxy simulation testing
+
+### 🔧 Recent Testing Updates (August 2025)
+- **Remote Testing Infrastructure**: Created standalone TCP/UDP echo servers for remote testing scenarios
+- **Protocol Debugging**: Added support for testing client-server protocol communication with live remote servers
+- **Bug Verification**: Validated fixes for client configuration parsing and protocol serialization issues
 
 ### 📋 Future Tests
 - Network layer integration tests with libuv runtime

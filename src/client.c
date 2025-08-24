@@ -163,7 +163,7 @@ int client_authenticate(struct client_session *session, const char *username, co
     /* Send authentication request */
     uint8_t buffer[1024];
     int ret = protocol_serialize(&msg, buffer, sizeof(buffer));
-    if (ret != SEED_OK) {
+    if (ret < 0) {
         log_error("Failed to serialize authentication message");
         return ret;
     }
@@ -425,7 +425,7 @@ int client_send_keepalive(struct client_session *session)
     /* Serialize and send */
     uint8_t buffer[256];
     int ret = protocol_serialize(&msg, buffer, sizeof(buffer));
-    if (ret != SEED_OK) {
+    if (ret < 0) {
         log_error("Failed to serialize keepalive message");
         return ret;
     }
@@ -500,10 +500,7 @@ static void on_server_connect(uv_connect_t *req, int status)
 
     /* Send HELLO message */
     struct protocol_message hello_msg;
-    memset(&hello_msg, 0, sizeof(hello_msg));
-    hello_msg.header.type = MSG_TYPE_HELLO;
-    hello_msg.header.sequence = 0;
-    hello_msg.header.length = sizeof(struct msg_hello);
+    protocol_init_message(&hello_msg, MSG_TYPE_HELLO);
     
     /* Fill hello payload */
     strncpy(hello_msg.payload.hello.client_id, "client_001", sizeof(hello_msg.payload.hello.client_id) - 1);
@@ -512,7 +509,7 @@ static void on_server_connect(uv_connect_t *req, int status)
 
     uint8_t buffer[256];
     ret = protocol_serialize(&hello_msg, buffer, sizeof(buffer));
-    if (ret != SEED_OK) {
+    if (ret < 0) {
         log_error("Failed to serialize HELLO message");
         session->state = CLIENT_STATE_ERROR;
         if (session->on_error) {
@@ -520,6 +517,7 @@ static void on_server_connect(uv_connect_t *req, int status)
         }
         return;
     }
+    size_t message_size = (size_t)ret;
 
     /* Send HELLO message */
     uv_write_t *write_req = malloc(sizeof(*write_req));
@@ -534,16 +532,16 @@ static void on_server_connect(uv_connect_t *req, int status)
         return;
     }
 
-    uint8_t *data = malloc(ret);
+    uint8_t *data = malloc(message_size);
     if (!data) {
         free(write_req);
         free(write_buf);
         return;
     }
 
-    memcpy(data, buffer, ret);
+    memcpy(data, buffer, message_size);
     write_buf->base = (char*)data;
-    write_buf->len = ret;
+    write_buf->len = (ULONG)message_size;
     write_req->data = write_buf;
 
     ret = uv_write(write_req, (uv_stream_t*)&session->server_connection,
